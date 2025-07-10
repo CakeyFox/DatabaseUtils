@@ -1,18 +1,19 @@
 package net.cakeyfox.foxy.database.utils
 
 import kotlinx.datetime.Instant
-import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.descriptors.PrimitiveKind
 import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
 import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
-import kotlinx.serialization.json.*
+import kotlinx.serialization.json.JsonDecoder
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 
 /*
- * This serializer is used to serialize and deserialize MongoDB date objects.
- * For example: {"$date": "2021-08-01T00:00:00Z"}
+    * This serializer is used to serialize and deserialize MongoDB date objects.
+    * For example: {"$date": "2021-08-01T00:00:00Z"}
  */
 
 object MongoDateSerializer : KSerializer<Instant?> {
@@ -24,29 +25,20 @@ object MongoDateSerializer : KSerializer<Instant?> {
             ?: throw IllegalStateException("This serializer can only be used with Json format")
         val jsonElement = jsonDecoder.decodeJsonElement()
 
-        if (jsonElement is JsonNull) {
+        if (jsonElement is JsonPrimitive && jsonElement.isString && jsonElement.content == "null") {
             return null
         }
 
         if (jsonElement is JsonObject && jsonElement.containsKey("\$date")) {
-            val dateString = (jsonElement["\$date"] as? JsonPrimitive)?.content
-                ?: return null
+            val dateString = (jsonElement["\$date"] as JsonPrimitive).content
             return Instant.parse(dateString)
+        } else {
+            throw IllegalArgumentException("Expected a MongoDB date object with '\$date' key")
         }
-
-        return null
     }
 
-    @OptIn(ExperimentalSerializationApi::class)
     override fun serialize(encoder: Encoder, value: Instant?) {
-        if (value == null) {
-            encoder.encodeNull()
-            return
-        }
-
         val jsonObject = JsonObject(mapOf("\$date" to JsonPrimitive(value.toString())))
-        val jsonEncoder = encoder as? JsonEncoder
-            ?: throw IllegalStateException("This serializer can only be used with Json format")
-        jsonEncoder.encodeJsonElement(jsonObject)
+        encoder.encodeString(jsonObject.toString())
     }
 }
