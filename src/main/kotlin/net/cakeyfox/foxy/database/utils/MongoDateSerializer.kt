@@ -12,6 +12,8 @@ import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.intOrNull
+import kotlinx.serialization.json.long
 
 /*
     * This serializer is used to serialize and deserialize MongoDB date objects.
@@ -29,15 +31,31 @@ object MongoDateSerializer : KSerializer<Instant?> {
 
         if (jsonElement is JsonNull) return null
 
-        if (jsonElement is JsonObject && jsonElement.containsKey("\$date")) {
-            val dateString = (jsonElement["\$date"] as? JsonPrimitive)?.contentOrNull ?: return null
-            return try {
-                Instant.parse(dateString)
-            } catch (e: Exception) {
-                null
+        return when {
+            jsonElement is JsonObject && jsonElement.containsKey("\$date") -> {
+                val dateString = (jsonElement["\$date"] as? JsonPrimitive)?.contentOrNull ?: return null
+                try {
+                    Instant.parse(dateString)
+                } catch (e: Exception) {
+                    null
+                }
             }
+            jsonElement is JsonPrimitive && jsonElement.isString -> {
+                try {
+                    Instant.parse(jsonElement.content)
+                } catch (e: Exception) {
+                    null
+                }
+            }
+            jsonElement is JsonPrimitive && jsonElement.intOrNull != null -> {
+                try {
+                    Instant.fromEpochMilliseconds(jsonElement.long)
+                } catch (e: Exception) {
+                    null
+                }
+            }
+            else -> null
         }
-        return null
     }
 
     override fun serialize(encoder: Encoder, value: Instant?) {
