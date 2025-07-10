@@ -8,6 +8,7 @@ import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.json.JsonDecoder
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 
@@ -25,9 +26,7 @@ object MongoDateSerializer : KSerializer<Instant?> {
             ?: throw IllegalStateException("This serializer can only be used with Json format")
         val jsonElement = jsonDecoder.decodeJsonElement()
 
-        if (jsonElement is JsonPrimitive && jsonElement.isString && jsonElement.content == "null") {
-            return null
-        }
+        if (jsonElement is JsonNull) return null
 
         if (jsonElement is JsonObject && jsonElement.containsKey("\$date")) {
             val dateString = (jsonElement["\$date"] as JsonPrimitive).content
