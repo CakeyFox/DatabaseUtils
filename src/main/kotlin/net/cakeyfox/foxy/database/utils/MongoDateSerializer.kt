@@ -31,31 +31,36 @@ object MongoDateSerializer : KSerializer<Instant?> {
 
         if (jsonElement is JsonNull) return null
 
-        return when {
-            jsonElement is JsonObject && jsonElement.containsKey("\$date") -> {
-                val dateString = (jsonElement["\$date"] as? JsonPrimitive)?.contentOrNull ?: return null
-                try {
-                    Instant.parse(dateString)
-                } catch (e: Exception) {
-                    null
+        if (jsonElement is JsonObject && jsonElement.containsKey("\$date")) {
+            val dateValue = jsonElement["\$date"]
+
+            return when (dateValue) {
+                is JsonPrimitive -> {
+                    // Handle "$date": "2021-08-01T00:00:00Z"
+                    val dateString = dateValue.contentOrNull ?: return null
+                    return try {
+                        Instant.parse(dateString)
+                    } catch (e: Exception) {
+                        null
+                    }
                 }
-            }
-            jsonElement is JsonPrimitive && jsonElement.isString -> {
-                try {
-                    Instant.parse(jsonElement.content)
-                } catch (e: Exception) {
-                    null
+
+                is JsonObject -> {
+                    // Handle "$date": {"$numberLong": "1234567890123"}
+                    val numberLong = (dateValue["\$numberLong"] as? JsonPrimitive)?.contentOrNull ?: return null
+                    val millis = numberLong.toLongOrNull() ?: return null
+                    return try {
+                        Instant.fromEpochMilliseconds(millis)
+                    } catch (e: Exception) {
+                        null
+                    }
                 }
+
+                else -> null
             }
-            jsonElement is JsonPrimitive && jsonElement.intOrNull != null -> {
-                try {
-                    Instant.fromEpochMilliseconds(jsonElement.long)
-                } catch (e: Exception) {
-                    null
-                }
-            }
-            else -> null
         }
+
+        return null
     }
 
     override fun serialize(encoder: Encoder, value: Instant?) {
