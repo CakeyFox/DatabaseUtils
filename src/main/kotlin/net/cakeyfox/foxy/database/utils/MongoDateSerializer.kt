@@ -16,14 +16,18 @@ import kotlinx.serialization.json.JsonPrimitive
     * For example: {"$date": "2021-08-01T00:00:00Z"}
  */
 
-object MongoDateSerializer : KSerializer<Instant> {
+object MongoDateSerializer : KSerializer<Instant?> {
     override val descriptor: SerialDescriptor =
         PrimitiveSerialDescriptor("MongoDate", PrimitiveKind.STRING)
 
-    override fun deserialize(decoder: Decoder): Instant {
+    override fun deserialize(decoder: Decoder): Instant? {
         val jsonDecoder = decoder as? JsonDecoder
             ?: throw IllegalStateException("This serializer can only be used with Json format")
         val jsonElement = jsonDecoder.decodeJsonElement()
+
+        if (jsonElement is JsonPrimitive && jsonElement.isString && jsonElement.content == "null") {
+            return null
+        }
 
         if (jsonElement is JsonObject && jsonElement.containsKey("\$date")) {
             val dateString = (jsonElement["\$date"] as JsonPrimitive).content
@@ -33,7 +37,7 @@ object MongoDateSerializer : KSerializer<Instant> {
         }
     }
 
-    override fun serialize(encoder: Encoder, value: Instant) {
+    override fun serialize(encoder: Encoder, value: Instant?) {
         val jsonObject = JsonObject(mapOf("\$date" to JsonPrimitive(value.toString())))
         encoder.encodeString(jsonObject.toString())
     }
