@@ -34,7 +34,8 @@ data class FoxyUser(
 data class UserCakes(
     val balance: Double = 0.0,
     @Serializable(with = MongoDateSerializer::class)
-    val lastDaily: Instant? = null
+    val lastDaily: Instant? = null,
+    val warnedAboutInactivityTax: Boolean? = false
 )
 
 @Serializable
