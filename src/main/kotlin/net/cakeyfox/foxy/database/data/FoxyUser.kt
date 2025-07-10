@@ -9,7 +9,7 @@ import net.cakeyfox.foxy.database.utils.MongoDateSerializer
 data class FoxyUser(
     val _id: String,
     @Serializable(with = MongoDateSerializer::class)
-    val userCreationTimestamp: Instant = Clock.System.now(),
+    val userCreationTimestamp: Instant? = Clock.System.now(),
     val isBanned: Boolean? = false,
     @Serializable(with = MongoDateSerializer::class)
     val banDate: Instant? = null,
@@ -108,7 +108,7 @@ data class Key(
     val key: String,
     val used: Boolean,
     @Serializable(with = MongoDateSerializer::class)
-    val expiresAt: Instant,
+    val expiresAt: Instant?,
     val pType: Int? = null
 )
 
