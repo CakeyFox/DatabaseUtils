@@ -1,70 +1,89 @@
 package net.cakeyfox.foxy.database.utils
 
 import kotlinx.datetime.Instant
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.descriptors.PrimitiveKind
 import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
 import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
-import kotlinx.serialization.json.JsonDecoder
-import kotlinx.serialization.json.JsonNull
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.intOrNull
-import kotlinx.serialization.json.long
+import kotlinx.serialization.json.*
 
-/*
-    * This serializer is used to serialize and deserialize MongoDB date objects.
-    * For example: {"$date": "2021-08-01T00:00:00Z"}
+/**
+ * Serializer for MongoDB date fields.
+ * Accepts:
+ *   - {"$date": "2021-08-01T00:00:00Z"}
+ *   - {"$date": {"$numberLong": "1640630250393"}}
+ *   - 1640630250393 (raw)
  */
-
 object MongoDateSerializer : KSerializer<Instant?> {
     override val descriptor: SerialDescriptor =
         PrimitiveSerialDescriptor("MongoDate", PrimitiveKind.STRING)
 
     override fun deserialize(decoder: Decoder): Instant? {
         val jsonDecoder = decoder as? JsonDecoder
-            ?: throw IllegalStateException("This serializer can only be used with Json format")
-        val jsonElement = jsonDecoder.decodeJsonElement()
+            ?: throw IllegalStateException("MongoDateSerializer only supports JSON")
 
-        if (jsonElement is JsonNull) return null
+        val element = jsonDecoder.decodeJsonElement()
 
-        if (jsonElement is JsonObject && jsonElement.containsKey("\$date")) {
-            val dateValue = jsonElement["\$date"]
+        return try {
+            when (element) {
+                JsonNull -> null
 
-            return when (dateValue) {
+
                 is JsonPrimitive -> {
-                    // Handle "$date": "2021-08-01T00:00:00Z"
-                    val dateString = dateValue.contentOrNull ?: return null
-                    return try {
-                        Instant.parse(dateString)
-                    } catch (e: Exception) {
-                        null
+                    // Raw epoch millis
+                    element.longOrNull?.let {
+                        Instant.fromEpochMilliseconds(it)
                     }
                 }
 
                 is JsonObject -> {
-                    // Handle "$date": {"$numberLong": "1234567890123"}
-                    val numberLong = (dateValue["\$numberLong"] as? JsonPrimitive)?.contentOrNull ?: return null
-                    val millis = numberLong.toLongOrNull() ?: return null
-                    return try {
-                        Instant.fromEpochMilliseconds(millis)
-                    } catch (e: Exception) {
-                        null
+                    val dateField = element["\$date"] ?: return null
+
+                    when (dateField) {
+                        is JsonPrimitive -> {
+                            val iso = dateField.contentOrNull
+                            iso?.let { Instant.parse(it) }
+                        }
+
+                        is JsonObject -> {
+                            val longStr = (dateField["\$numberLong"] as? JsonPrimitive)?.contentOrNull
+                            longStr?.toLongOrNull()?.let { Instant.fromEpochMilliseconds(it) }
+                        }
+
+                        else -> {
+                            null
+                        }
                     }
                 }
 
                 else -> null
-            }
-        }
 
-        return null
+            }
+        } catch (e: Exception) {
+            null
+        }
     }
 
+    @OptIn(ExperimentalSerializationApi::class)
     override fun serialize(encoder: Encoder, value: Instant?) {
-        val jsonObject = JsonObject(mapOf("\$date" to JsonPrimitive(value.toString())))
-        encoder.encodeString(jsonObject.toString())
+        if (value == null) {
+            encoder.encodeNull()
+            return
+        }
+
+        val millis = value.toEpochMilliseconds()
+        val jsonObject = JsonObject(
+            mapOf(
+                "\$date" to JsonObject(
+                    mapOf("\$numberLong" to JsonPrimitive(millis.toString()))
+                )
+            )
+        )
+
+        (encoder as? JsonEncoder)?.encodeJsonElement(jsonObject)
+            ?: encoder.encodeString(jsonObject.toString())
     }
 }
