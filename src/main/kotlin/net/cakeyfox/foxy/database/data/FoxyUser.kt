@@ -59,7 +59,8 @@ data class UserProfile(
     val lastRep: Instant? = null,
     val layout: String = "default",
     val layoutList: List<String> = listOf("default"),
-    val aboutme: String? = null
+    val aboutme: String? = null,
+    val disabledBadges: List<String>? = null
 )
 
 @Serializable
