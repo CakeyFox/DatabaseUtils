@@ -14,7 +14,7 @@ data class FoxyUser(
     @Serializable(with = MongoDateSerializer::class)
     val banDate: Instant? = null,
     val banReason: String? = null,
-    val userBirthday: UserBirthday,
+    val userBirthday: UserBirthday ? = null,
     val userCakes: UserCakes,
     val marryStatus: MarryStatus,
     val userProfile: UserProfile,
