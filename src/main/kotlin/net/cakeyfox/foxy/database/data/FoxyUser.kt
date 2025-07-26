@@ -14,6 +14,7 @@ data class FoxyUser(
     @Serializable(with = MongoDateSerializer::class)
     val banDate: Instant? = null,
     val banReason: String? = null,
+    val userBirthday: UserBirthday,
     val userCakes: UserCakes,
     val marryStatus: MarryStatus,
     val userProfile: UserProfile,
@@ -28,6 +29,15 @@ data class FoxyUser(
     val lastVote: Instant? = null,
     val notifiedForVote: Boolean? = false,
     val voteCount: Int? = null
+)
+
+@Serializable
+data class UserBirthday(
+    val isEnabled: Boolean? = true,
+    @Serializable(with = MongoDateSerializer::class)
+    val lastMessage: Instant? = null,
+    @Serializable(with = MongoDateSerializer::class)
+    val birthday: Instant? = null
 )
 
 @Serializable
