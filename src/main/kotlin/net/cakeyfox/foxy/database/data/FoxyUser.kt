@@ -38,6 +38,7 @@ data class UserCakes(
     val warnedAboutInactivityTax: Boolean? = false,
     @Serializable(with = MongoDateSerializer::class)
     val lastInactivityTax: Instant? = null
+    val notifiedForDaily: Boolean? = false
 )
 
 @Serializable
