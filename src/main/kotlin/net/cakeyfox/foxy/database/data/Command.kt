@@ -11,7 +11,8 @@ data class Command(
     val subCommands: List<SubCommand>,
     val usage: String? = null,
     val category: String? = "utils",
-    val supportsLegacy: Boolean? = false
+    val supportsLegacy: Boolean? = false,
+    val aliases: List<String> = emptyList()
 ) {
     @Serializable
     data class SubCommand(
