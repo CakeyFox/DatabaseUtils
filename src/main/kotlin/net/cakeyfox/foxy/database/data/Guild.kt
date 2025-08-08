@@ -52,7 +52,7 @@ data class AutoRoleModule(
 
 @Serializable
 data class GuildSettings(
-    val prefix: String = "f!",
+    val prefix: String = ".",
     val language: String = "pt-BR",
     val disabledCommands: List<String> = emptyList(),
     val blockedChannels: List<String> = emptyList(),
