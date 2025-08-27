@@ -1,6 +1,8 @@
 package net.cakeyfox.foxy.database.data
 
+import kotlinx.datetime.Instant
 import kotlinx.serialization.Serializable
+import net.cakeyfox.foxy.database.utils.MongoDateSerializer
 
 @Serializable
 data class Guild(
@@ -11,8 +13,24 @@ data class Guild(
     val antiRaidModule: AntiRaidModule,
     val premiumKeys: List<Key> = emptyList(),
     val guildSettings: GuildSettings,
+    val followedYouTubeChannels: List<YouTubeChannel> = emptyList(),
     val dashboardLogs: List<DashboardLog> = emptyList(),
 )
+
+@Serializable
+data class YouTubeChannel(
+    val channelId: String,
+    val notificationMessage: String? = null,
+    val channelToSend: String? = null,
+    val notifiedVideos: List<Video>? = emptyList(),
+) {
+    @Serializable
+    data class Video(
+        val id: String,
+        @Serializable(with = MongoDateSerializer::class)
+        val notifiedAt: Instant? = null
+    )
+}
 
 @Serializable
 data class WelcomerModule(
@@ -67,3 +85,23 @@ data class DashboardLog(
     val actionType: String?,
     val date: Long
 )
+
+// Foxyverse guilds
+@Serializable
+data class FoxyverseGuild(
+    val serverBenefits: ServerBenefits? = null,
+    val guildAdmins: List<String>? = emptyList(),
+    val serverInvite: String? = null,
+) {
+    @Serializable
+    data class ServerBenefits(
+        val givePremiumIfBoosted: GivePremiumIfBoosted
+    ) {
+        @Serializable
+        data class GivePremiumIfBoosted(
+            val isEnabled: Boolean? = false,
+            val notifyUser: Boolean? = false,
+            val textChannelToRedeem: String? = null
+        )
+    }
+}
