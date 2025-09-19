@@ -23,7 +23,6 @@ data class FoxyUser(
     val petInfo: PetInfo? = null,
     val lastRob: Long? = 0,
     val userTransactions: List<Transaction>? = emptyList(),
-    val premiumKeys: List<Key>? = emptyList(),
     val roulette: Roulette? = null,
     @Serializable(with = MongoDateSerializer::class)
     val lastVote: Instant? = null,
@@ -114,16 +113,6 @@ data class Transaction(
     val date: Instant? = null,
     val received: Boolean = false,
     val type: String? = null
-)
-
-
-@Serializable
-data class Key(
-    val key: String,
-    val used: Boolean,
-    @Serializable(with = MongoDateSerializer::class)
-    val expiresAt: Instant?,
-    val pType: Int? = null
 )
 
 @Serializable

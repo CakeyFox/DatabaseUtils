@@ -11,10 +11,18 @@ data class Guild(
     val GuildJoinLeaveModule: WelcomerModule,
     val AutoRoleModule: AutoRoleModule? = null,
     val antiRaidModule: AntiRaidModule? = null,
-    val premiumKeys: List<Key> = emptyList(),
     val guildSettings: GuildSettings,
     val followedYouTubeChannels: List<YouTubeChannel> = emptyList(),
+    val musicSettings: MusicSettings? = null,
     val dashboardLogs: List<DashboardLog> = emptyList(),
+)
+
+@Serializable
+data class MusicSettings(
+    val defaultVolume: Int = 35,
+    val leaveOnEmptyChannel: Boolean = true,
+    val requstMusicChannel: String? = null,
+    val announceNowPlaying: Boolean = true,
 )
 
 @Serializable
