@@ -20,9 +20,10 @@ data class Guild(
 @Serializable
 data class MusicSettings(
     val defaultVolume: Int = 35,
-    val leaveOnEmptyChannel: Boolean = true,
-    val requstMusicChannel: String? = null,
+    val is247ModeEnabled: Boolean = false,
+    val requestMusicChannel: String? = null,
     val announceNowPlaying: Boolean = true,
+    val updateStageChannelTopic: Boolean = false,
 )
 
 @Serializable
