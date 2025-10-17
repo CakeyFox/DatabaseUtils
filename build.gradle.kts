@@ -24,6 +24,12 @@ dependencies {
     // Serialization
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.8.0")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-hocon:1.8.0")
+    implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.18.0")
+    implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.18.0")
+
+    implementation("com.google.guava:guava:33.5.0-jre")
+    implementation("ch.qos.logback:logback-classic:1.5.8")
+    implementation("io.github.microutils:kotlin-logging:2.1.23")
 }
 
 publishing {

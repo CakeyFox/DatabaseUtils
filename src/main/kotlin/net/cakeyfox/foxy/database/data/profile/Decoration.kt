@@ -1,14 +1,15 @@
-package net.cakeyfox.foxy.database.data
+package net.cakeyfox.foxy.database.data.profile
 
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class Background(
+data class Decoration(
     val id: String,
     val name: String,
-    val cakes: Int? = 0,
+    val cakes: Int,
     val filename: String,
     val description: String? = null,
+    val inactive: Boolean = false,
     val author: String? = null,
-    val inactive: Boolean = false
+    val isMask: Boolean = false,
 )

@@ -1,4 +1,4 @@
-package net.cakeyfox.foxy.database.data
+package net.cakeyfox.foxy.database.data.profile
 
 import kotlinx.serialization.Serializable
 

@@ -1,4 +1,4 @@
-package net.cakeyfox.foxy.database.data
+package net.cakeyfox.foxy.database.data.user
 
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
