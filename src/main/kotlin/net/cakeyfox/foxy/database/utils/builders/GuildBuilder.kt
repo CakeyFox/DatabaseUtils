@@ -14,25 +14,26 @@ class GuildBuilder {
     val dashboardLogs = mutableListOf<DashboardLogBuilder>()
 
     fun toDocument(): Document {
-        val map = mutableMapOf<String, Any?>()
+        val setOps = mutableMapOf<String, Any?>()
 
-        guildAddedAt?.let { map["guildAddedAt"] = it }
+        guildAddedAt?.let { setOps["guildAddedAt"] = it }
 
-        map.putAll(guildJoinLeaveModule.toDocument("GuildJoinLeaveModule"))
-        map.putAll(autoRoleModule.toDocument("AutoRoleModule"))
-        map.putAll(antiRaidModule.toDocument("antiRaidModule"))
-        map.putAll(guildSettings.toDocument("guildSettings"))
-        map.putAll(musicSettings.toDocument("musicSettings"))
+        setOps.putAll(guildJoinLeaveModule.toDocument("guildJoinLeaveModule"))
+        setOps.putAll(autoRoleModule.toDocument("autoRoleModule"))
+        setOps.putAll(antiRaidModule.toDocument("antiRaidModule"))
+        setOps.putAll(guildSettings.toDocument("guildSettings"))
+        setOps.putAll(musicSettings.toDocument("musicSettings"))
+
 
         if (followedYouTubeChannels.isNotEmpty()) {
-            map["followedYouTubeChannels"] = followedYouTubeChannels.map { it.toMap() }
+            setOps["followedYouTubeChannels"] = followedYouTubeChannels.map { it.toMap() }
         }
 
         if (dashboardLogs.isNotEmpty()) {
-            map["dashboardLogs"] = dashboardLogs.map { it.toMap() }
+            setOps["dashboardLogs"] = dashboardLogs.map { it.toMap() }
         }
 
-        return Document(map)
+        return Document("\$set", setOps)
     }
 }
 

@@ -108,7 +108,7 @@ class UserUtils(private val client: DatabaseClient) {
 
         client.withRetry {
             val query = Document("_id", userId)
-            val update = Document("\$set", builder.toDocument())
+            val update = builder.toDocument()
             client.users.updateOne(query, update)
         }
     }

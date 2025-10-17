@@ -53,9 +53,7 @@ object MongoDateSerializer : KSerializer<Instant?> {
                             longStr?.toLongOrNull()?.let { Instant.fromEpochMilliseconds(it) }
                         }
 
-                        else -> {
-                            null
-                        }
+                        else -> null
                     }
                 }
 

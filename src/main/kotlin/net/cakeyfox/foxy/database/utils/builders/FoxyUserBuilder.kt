@@ -21,25 +21,39 @@ class FoxyUserBuilder {
     var voteCount: Int? = null
 
     fun toDocument(): Document {
-        val map = mutableMapOf<String, Any?>()
+        val setMap = mutableMapOf<String, Any?>()
+        val incMap = mutableMapOf<String, Any?>()
 
-        isBanned?.let { map["isBanned"] = it }
-        banReason?.let { map["banReason"] = it }
-        banDate?.let { map["banDate"] = it }
-        lastRob?.let { map["lastRob"] = it }
-        lastVote?.let { map["lastVote"] = it }
-        notifiedForVote?.let { map["notifiedForVote"] = it }
-        voteCount?.let { map["voteCount"] = it }
+        isBanned?.let { setMap["isBanned"] = it }
+        banReason?.let { setMap["banReason"] = it }
+        banDate?.let { setMap["banDate"] = it.toBsonDate() }
+        lastRob?.let { setMap["lastRob"] = it }
+        lastVote?.let { setMap["lastVote"] = it.toBsonDate() }
+        notifiedForVote?.let { setMap["notifiedForVote"] = it }
+        voteCount?.let { setMap["voteCount"] = it }
 
-        map.putAll(userProfile.toDocument("userProfile"))
-        map.putAll(userPremium.toDocument("userPremium"))
-        map.putAll(userCakes.toDocument("userCakes"))
-        map.putAll(marryStatus.toDocument("marryStatus"))
-        map.putAll(userSettings.toDocument("userSettings"))
-        map.putAll(userBirthday.toDocument("userBirthday"))
-        map.putAll(roulette.toDocument("roulette"))
+        mergeBuilderMaps(userProfile.toDocument("userProfile"), setMap, incMap)
+        mergeBuilderMaps(userPremium.toDocument("userPremium"), setMap, incMap)
+        mergeBuilderMaps(userCakes.toDocument("userCakes"), setMap, incMap)
+        mergeBuilderMaps(marryStatus.toDocument("marryStatus"), setMap, incMap)
+        mergeBuilderMaps(userSettings.toDocument("userSettings"), setMap, incMap)
+        mergeBuilderMaps(userBirthday.toDocument("userBirthday"), setMap, incMap)
+        mergeBuilderMaps(roulette.toDocument("roulette"), setMap, incMap)
 
-        return Document(map)
+        val doc = Document()
+        if (setMap.isNotEmpty()) doc["\$set"] = setMap
+        if (incMap.isNotEmpty()) doc["\$inc"] = incMap
+        return doc
+    }
+
+    private fun mergeBuilderMaps(builderDoc: Document, setMap: MutableMap<String, Any?>, incMap: MutableMap<String, Any?>) {
+        builderDoc.forEach { (key, value) ->
+            when (key) {
+                "\$set" -> setMap.putAll(value as Map<String, Any?>)
+                "\$inc" -> incMap.putAll(value as Map<String, Any?>)
+                else -> setMap[key] = value
+            }
+        }
     }
 }
 
@@ -48,19 +62,19 @@ class UserProfileBuilder {
     var layout: String? = null
     var aboutme: String? = null
     var disabledBadges: List<String>? = null
-
     val backgroundList = mutableListOf<String>()
     val layoutList = mutableListOf<String>()
 
-    fun toDocument(prefix: String): Map<String, Any?> {
+    fun toDocument(prefix: String): Document {
         val map = mutableMapOf<String, Any?>()
         background?.let { map["$prefix.background"] = it }
         layout?.let { map["$prefix.layout"] = it }
         aboutme?.let { map["$prefix.aboutme"] = it }
         if (backgroundList.isNotEmpty()) map["$prefix.backgroundList"] = backgroundList
         if (layoutList.isNotEmpty()) map["$prefix.layoutList"] = layoutList
-        if (disabledBadges.isNullOrEmpty()) map["$prefix.disabledBadges"] = disabledBadges
-        return map
+        disabledBadges?.let { map["$prefix.disabledBadges"] = it }
+
+        return Document(map)
     }
 }
 
@@ -68,28 +82,44 @@ class UserPremiumBuilder {
     var premium: Boolean? = null
     var premiumDate: Instant? = null
     var premiumType: String? = null
-    fun toDocument(prefix: String): Map<String, Any?> {
+
+    fun toDocument(prefix: String): Document {
         val map = mutableMapOf<String, Any?>()
         premium?.let { map["$prefix.premium"] = it }
         premiumType?.let { map["$prefix.premiumType"] = it }
         premiumDate?.let { map["$prefix.premiumDate"] = it.toBsonDate() }
-        return map
+        return Document(map)
     }
 }
 
 class UserCakesBuilder {
+    private var balanceIncrement: Double = 0.0
     var balance: Double? = null
     var lastInactivityTax: Instant? = null
     var notifiedForDaily: Boolean? = null
     var warnedAboutInactivityTax: Boolean? = null
 
-    fun toDocument(prefix: String): Map<String, Any?> {
-        val map = mutableMapOf<String, Any?>()
-        balance?.let { map["$prefix.balance"] = it }
-        lastInactivityTax?.let { map["$prefix.lastInactivityTax"] = it.toBsonDate() }
-        notifiedForDaily?.let { map["$prefix.notifiedForDaily"] = it }
-        warnedAboutInactivityTax?.let { map["$prefix.warnedAboutInactivityTax"] = it }
-        return map
+    fun addCakes(value: Long) {
+        balanceIncrement += value
+    }
+
+    fun removeCakes(value: Long) {
+        balanceIncrement -= value
+    }
+
+    fun toDocument(prefix: String): Document {
+        val setMap = mutableMapOf<String, Any?>()
+        val incMap = mutableMapOf<String, Any?>()
+
+        if (balanceIncrement != 0.0) incMap["$prefix.balance"] = balanceIncrement
+        lastInactivityTax?.let { setMap["$prefix.lastInactivityTax"] = it.toBsonDate() }
+        notifiedForDaily?.let { setMap["$prefix.notifiedForDaily"] = it }
+        warnedAboutInactivityTax?.let { setMap["$prefix.warnedAboutInactivityTax"] = it }
+
+        val doc = Document()
+        if (setMap.isNotEmpty()) doc["\$set"] = setMap
+        if (incMap.isNotEmpty()) doc["\$inc"] = incMap
+        return doc
     }
 }
 
@@ -97,36 +127,38 @@ class MarryStatusBuilder {
     var cantMarry: Boolean? = null
     var marriedWith: String? = null
     var marriedDate: Instant? = null
-    fun toDocument(prefix: String) = mutableMapOf<String, Any?>().apply {
-        cantMarry?.let { this["$prefix.cantMarry"] = it }
-        marriedWith?.let { this["$prefix.marriedWith"] = it }
-        marriedDate?.let { this["$prefix.marriedDate"] = it.toBsonDate() }
+
+    fun toDocument(prefix: String): Document {
+        val map = mutableMapOf<String, Any?>()
+        cantMarry?.let { map["$prefix.cantMarry"] = it }
+        marriedWith?.let { map["$prefix.marriedWith"] = it }
+        marriedDate?.let { map["$prefix.marriedDate"] = it.toBsonDate() }
+        return Document(map)
     }
 }
 
 class UserSettingsBuilder {
     var language: String? = null
-    fun toDocument(prefix: String) = mutableMapOf<String, Any?>().apply {
-        language?.let { this["$prefix.language"] = it }
-    }
+    fun toDocument(prefix: String) = Document().apply { language?.let { put("$prefix.language", it) } }
 }
 
 class UserBirthdayBuilder {
     var isEnabled: Boolean? = null
     var lastMessage: Instant? = null
     var birthday: Instant? = null
-    fun toDocument(prefix: String) = mutableMapOf<String, Any?>().apply {
-        isEnabled?.let { this["$prefix.isEnabled"] = it }
-        lastMessage?.let { this["$prefix.lastMessage"] = it.toBsonDate() }
-        birthday?.let { this["$prefix.birthday"] = it.toBsonDate() }
+
+    fun toDocument(prefix: String): Document {
+        val map = mutableMapOf<String, Any?>()
+        isEnabled?.let { map["$prefix.isEnabled"] = it }
+        lastMessage?.let { map["$prefix.lastMessage"] = it.toBsonDate() }
+        birthday?.let { map["$prefix.birthday"] = it.toBsonDate() }
+        return Document(map)
     }
 }
 
 class RouletteBuilder {
     var availableSpins: Int? = null
-    fun toDocument(prefix: String) = mutableMapOf<String, Any?>().apply {
-        availableSpins?.let { this["$prefix.availableSpins"] = it }
-    }
+    fun toDocument(prefix: String) = Document().apply { availableSpins?.let { put("$prefix.availableSpins", it) } }
 }
 
-fun Instant?.toBsonDate(): Any? = this?.let { Date.from(it.toJavaInstant()) }
+fun Instant?.toBsonDate(): Date? = this?.let { Date.from(it.toJavaInstant()) }

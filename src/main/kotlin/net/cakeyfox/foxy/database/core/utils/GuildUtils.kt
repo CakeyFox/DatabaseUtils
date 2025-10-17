@@ -62,10 +62,10 @@ class GuildUtils(
     suspend fun updateGuild(guildId: String, block: GuildBuilder.() -> Unit) {
         val builder = GuildBuilder().apply(block)
         val collection = client.database.getCollection<Guild>("guilds")
-        collection.updateOne(
-            Document("_id", guildId),
-            Document("\$set", builder.toDocument())
-        )
+        val update = builder.toDocument()
+        val query = Document("_id", guildId)
+
+        collection.updateOne(query, update)
     }
 
     suspend fun deleteGuild(guildId: String) {
