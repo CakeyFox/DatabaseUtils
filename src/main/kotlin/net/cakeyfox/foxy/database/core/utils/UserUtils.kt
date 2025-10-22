@@ -2,6 +2,7 @@ package net.cakeyfox.foxy.database.core.utils
 
 
 import FoxyUserBuilder
+import com.mongodb.client.model.Aggregates.skip
 import com.mongodb.client.model.Filters.and
 import org.bson.Document
 import kotlinx.coroutines.flow.firstOrNull
@@ -22,7 +23,6 @@ import net.cakeyfox.foxy.database.data.user.FoxyUser
 import net.cakeyfox.foxy.database.data.user.MarryStatus
 import net.cakeyfox.foxy.database.data.user.PetInfo
 import net.cakeyfox.foxy.database.data.user.Roulette
-import net.cakeyfox.foxy.database.data.user.UserBalance
 import net.cakeyfox.foxy.database.data.user.UserBirthday
 import net.cakeyfox.foxy.database.data.user.UserCakes
 import net.cakeyfox.foxy.database.data.user.UserPremium
@@ -134,47 +134,17 @@ class UserUtils(private val client: DatabaseClient) {
         }
     }
 
-    suspend fun getTopMarriedUsers(): List<FoxyUser> {
-        return client.withRetry {
-            val collection = client.database.getCollection<Document>("users")
-            collection.find(
-                and(
-                    exists("marryStatus.marriedWith", true),
-                    exists("marryStatus.marriedDate", true),
-                    ne("marryStatus.marriedDate", null)
-                )
-            )
-                .sort(ascending("marryStatus.marriedDate"))
-                .limit(55)
-                .map { document ->
-                    val documentToJSON = document.toJson()
-                    client.json.decodeFromString<FoxyUser>(documentToJSON)
-                }
-                .toList()
-        }
-    }
+    suspend fun getCakesLeaderboardPage(page: Int, pageSize: Int? = 10): List<FoxyUser> {
+        val skip = (page - 1) * pageSize!!
 
-    suspend fun getTopUsersByCakes(limit: Int? = 100): List<UserBalance> {
-        return client.withRetry {
-            val collection = client.database.getCollection<Document>("users")
-            collection.find()
-                .sort(descending("userCakes.balance"))
-                .limit(limit!!)
-                .projection(include("_id", "userCakes.balance"))
-                .map { document ->
-                    val id = document.getString("_id")
-                    val balanceAny = document.getEmbedded(listOf("userCakes", "balance"), Any::class.java)
-                    val balanceDouble = when (balanceAny) {
-                        is Double -> balanceAny
-                        is Int -> balanceAny.toDouble()
-                        is Long -> balanceAny.toDouble()
-                        else -> 0.0
-                    }
-                    val balance = balanceDouble.toLong()
-                    UserBalance(userId = id, balance = balance)
-                }
-                .toList()
-        }
+        val collection = client.database.getCollection<FoxyUser>("users")
+
+        return collection
+            .find(Document("userCakes.balance", Document("\$gt", 0)))
+            .sort(Document("userCakes.balance", -1))
+            .skip(skip)
+            .limit(pageSize)
+            .toList()
     }
 
     suspend fun addCakesToUser(userId: String, amount: Long) {

@@ -33,6 +33,7 @@ class DatabaseClient() {
     private var databaseUser: String = ""
     private var pwd: String = ""
     private var address: String = ""
+    private var protocol: String? = "mongodb://"
     var databaseName: String = ""
 
     private val coroutineExecutor = ThreadUtils.createThreadPool("DatabaseExecutor [%d]")
@@ -55,7 +56,7 @@ class DatabaseClient() {
             "DatabaseClient: user, password, address e database are required."
         }
 
-        val connectionString = "mongodb://$databaseUser:$pwd@$address/$databaseName"
+        val connectionString = "$protocol$databaseUser:$pwd@$address/$databaseName"
         logger.info { "Connecting to MongoDB at $address" }
 
         client = MongoClient.create(connectionString)
@@ -109,6 +110,11 @@ class DatabaseClient() {
         return withContext(coroutineDispatcher) {
             this@DatabaseClient.withDatabaseRetry(block = block)
         }
+    }
+
+    fun setProtocol(connectionProtocol: String? = "mongodb://"): DatabaseClient {
+        protocol = connectionProtocol
+        return this
     }
 
     fun setUser(user: String): DatabaseClient {
