@@ -64,6 +64,8 @@ class UserProfileBuilder {
     var disabledBadges: List<String>? = null
     val backgroundList = mutableListOf<String>()
     val layoutList = mutableListOf<String>()
+    var lastRep: Instant? = null
+    var repCount: Long? = null
 
     fun toDocument(prefix: String): Document {
         val map = mutableMapOf<String, Any?>()
@@ -73,6 +75,8 @@ class UserProfileBuilder {
         if (backgroundList.isNotEmpty()) map["$prefix.backgroundList"] = backgroundList
         if (layoutList.isNotEmpty()) map["$prefix.layoutList"] = layoutList
         disabledBadges?.let { map["$prefix.disabledBadges"] = it }
+        lastRep?.let { map["$prefix.lastRep"] = it.toBsonDate() }
+        repCount?.let { map["$prefix.repCount"] = it }
 
         return Document(map)
     }
