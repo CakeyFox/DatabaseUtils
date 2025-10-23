@@ -65,7 +65,7 @@ class UserProfileBuilder {
     val backgroundList = mutableListOf<String>()
     val layoutList = mutableListOf<String>()
     var lastRep: Instant? = null
-    var repCount: Long? = null
+    var repCount: Int? = null
 
     fun toDocument(prefix: String): Document {
         val map = mutableMapOf<String, Any?>()
