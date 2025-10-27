@@ -2,8 +2,6 @@ package net.cakeyfox.foxy.database.core.utils
 
 import com.mongodb.client.model.Filters.and
 import com.mongodb.client.model.Filters.eq
-import com.mongodb.client.model.UpdateOptions
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.firstOrNull
 import net.cakeyfox.foxy.database.core.DatabaseClient
 import net.cakeyfox.foxy.database.data.checkout.Checkout
