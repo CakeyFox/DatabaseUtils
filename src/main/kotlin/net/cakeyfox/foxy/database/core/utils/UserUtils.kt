@@ -13,6 +13,7 @@ import com.mongodb.client.model.Filters.ne
 import com.mongodb.client.model.Indexes.descending
 import com.mongodb.client.model.Projections.include
 import com.mongodb.client.model.Sorts.ascending
+import com.mongodb.client.model.UpdateOptions
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.toList
 import kotlinx.datetime.Clock
@@ -22,6 +23,7 @@ import net.cakeyfox.foxy.database.data.guild.Key
 import net.cakeyfox.foxy.database.data.user.FoxyUser
 import net.cakeyfox.foxy.database.data.user.MarryStatus
 import net.cakeyfox.foxy.database.data.user.PetInfo
+import net.cakeyfox.foxy.database.data.user.Reputation
 import net.cakeyfox.foxy.database.data.user.Roulette
 import net.cakeyfox.foxy.database.data.user.UserBirthday
 import net.cakeyfox.foxy.database.data.user.UserCakes
@@ -122,6 +124,30 @@ class UserUtils(private val client: DatabaseClient) {
                 notifiedForVote = false
                 userCakes.balance = userData.userCakes.balance + 1500
             }
+        }
+    }
+
+    suspend fun addReputation(userId: String, reason: String) {
+        client.withRetry {
+            val collection = client.database.getCollection<Document>("users")
+
+            collection.find(eq("_id", userId)).firstOrNull() ?: createUser(userId)
+
+            val query = Document("_id", userId)
+            val update = Reputation(
+                sender = userId,
+                reason = reason,
+                date = Clock.System.now()
+            )
+
+            client.users.updateOne(
+                query,
+                Document(
+                    "\$push",
+                    Document("userProfile.reputations", update)
+                ),
+                UpdateOptions().upsert(true)
+            )
         }
     }
 

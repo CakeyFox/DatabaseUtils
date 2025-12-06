@@ -67,10 +67,19 @@ data class UserProfile(
     val repCount: Int = 0,
     @Serializable(with = MongoDateSerializer::class)
     val lastRep: Instant? = null,
+    val reputations: List<Reputation>? = emptyList(),
     val layout: String = "default",
     val layoutList: List<String> = listOf("default"),
     val aboutme: String? = null,
     val disabledBadges: List<String>? = null
+)
+
+@Serializable
+data class Reputation(
+    val sender: String,
+    @Serializable(with = MongoDateSerializer::class)
+    val date: Instant? = null,
+    val reason: String? = null
 )
 
 @Serializable

@@ -1,3 +1,7 @@
+import com.mongodb.client.model.Updates
+import kotlinx.datetime.Instant
+import net.cakeyfox.foxy.database.data.guild.ModerationUtils
+import net.cakeyfox.foxy.database.data.guild.TempBan
 import net.cakeyfox.foxy.database.data.guild.YouTubeChannel
 import org.bson.Document
 import kotlin.collections.map
@@ -8,21 +12,25 @@ class GuildBuilder {
     val antiRaidModule = AntiRaidModuleBuilder()
     val guildSettings = GuildSettingsBuilder()
     val musicSettings = MusicSettingsBuilder()
-
+    val serverLogModule = ServerLogModule()
+    val moderationUtils = ModerationUtilsBuilder()
     var guildAddedAt: Long? = null
     val followedYouTubeChannels = mutableListOf<YouTubeChannelBuilder>()
     val dashboardLogs = mutableListOf<DashboardLogBuilder>()
+    val tempBans = mutableListOf<TempBanBuilder>()
 
     fun toDocument(): Document {
         val setOps = mutableMapOf<String, Any?>()
 
         guildAddedAt?.let { setOps["guildAddedAt"] = it }
 
+        setOps.putAll(serverLogModule.toDocument("serverLogModule"))
         setOps.putAll(guildJoinLeaveModule.toDocument("guildJoinLeaveModule"))
         setOps.putAll(autoRoleModule.toDocument("autoRoleModule"))
         setOps.putAll(antiRaidModule.toDocument("antiRaidModule"))
         setOps.putAll(guildSettings.toDocument("guildSettings"))
         setOps.putAll(musicSettings.toDocument("musicSettings"))
+        setOps.putAll(moderationUtils.toDocument("moderationUtils"))
 
 
         if (followedYouTubeChannels.isNotEmpty()) {
@@ -33,7 +41,41 @@ class GuildBuilder {
             setOps["dashboardLogs"] = dashboardLogs.map { it.toMap() }
         }
 
+        if (tempBans.isNotEmpty()) {
+            setOps["tempBans"] = tempBans.map { it.toMap() }
+        }
+
         return Document("\$set", setOps)
+    }
+}
+
+class ServerLogModule {
+    var sendVoiceChannelLogs: Boolean? = null
+    var sendDeletedMessagesLogs: Boolean? = null
+    var sendUpdatedMessagesLogs: Boolean? = null
+    var channelToSendExpiredBans: String? = null
+    var sendExpiredBansLogs: Boolean? = false
+
+    fun toDocument(prefix: String): Map<String, Any?> {
+        val map = mutableMapOf<String, Any?>()
+        channelToSendExpiredBans?.let { map["$prefix.channelToSendExpiredBans"] = it }
+        sendExpiredBansLogs?.let { map["$prefix.sendExpiredBansLogs"] = it }
+        sendVoiceChannelLogs?.let { map["$prefix.sendVoiceChannelLogs"] = it }
+        sendDeletedMessagesLogs?.let { map["$prefix.sendDeletedMessagesLogs"] = it }
+        sendUpdatedMessagesLogs?.let { map["$prefix.sendUpdatedMessagesLogs"] = it }
+
+        return map
+    }
+}
+
+class ModerationUtilsBuilder {
+    var customPunishmentMessage: String? = null
+
+    fun toDocument(prefix: String): Map<String, Any?> {
+        val map = mutableMapOf<String, Any?>()
+        customPunishmentMessage?.let { map["$prefix.customPunishmentMessage"] = it }
+
+        return map
     }
 }
 
@@ -83,11 +125,19 @@ class GuildSettingsBuilder {
     var prefix: String? = null
     var language: String? = null
     val disabledCommands = mutableListOf<String>()
+    var blockedChannels = mutableListOf<String>()
+    var sendMessageIfChannelIsBlocked: Boolean? = false
+    var deleteMessageIfCommandIsExecuted: Boolean? = false
+    var usersWhoCanAccessDashboard = mutableListOf<String>()
 
     fun toDocument(prefix: String): Map<String, Any?> {
         val map = mutableMapOf<String, Any?>()
         this.prefix?.let { map["$prefix.prefix"] = it }
         language?.let { map["$prefix.language"] = it }
+        sendMessageIfChannelIsBlocked?.let { map["$prefix.sendMessageIfChannelIsBlocked"] = it }
+        deleteMessageIfCommandIsExecuted?.let { map["$prefix.deleteMessageIfCommandIsExecuted"] = it }
+        if (blockedChannels.isNotEmpty()) map["$prefix.blockedChannels"] = blockedChannels
+        if (usersWhoCanAccessDashboard.isNotEmpty()) map["$prefix.usersWhoCanAccessDashboard"] = usersWhoCanAccessDashboard
         if (disabledCommands.isNotEmpty()) map["$prefix.disabledCommands"] = disabledCommands
         return map
     }
@@ -103,6 +153,21 @@ class MusicSettingsBuilder {
         defaultVolume?.let { map["$prefix.defaultVolume"] = it }
         is247ModeEnabled?.let { map["$prefix.is247ModeEnabled"] = it }
         requestMusicChannel?.let { map["$prefix.requestMusicChannel"] = it }
+        return map
+    }
+}
+
+class TempBanBuilder {
+    var userId: String? = null
+    var reason: String? = null
+    var duration: Instant? = null
+
+    fun toMap(): Map<String, Any?> {
+        val map = mutableMapOf<String, Any?>()
+        userId?.let { map["userId"] = it }
+        reason?.let { map["reason"] = it }
+        duration?.let { map["duration"] = it.toBsonDate() }
+
         return map
     }
 }

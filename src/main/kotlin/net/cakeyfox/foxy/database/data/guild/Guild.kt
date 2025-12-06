@@ -12,9 +12,40 @@ data class Guild(
     val AutoRoleModule: AutoRoleModule? = null,
     val antiRaidModule: AntiRaidModule? = null,
     val guildSettings: GuildSettings,
+    val moderationUtils: ModerationUtils? = null,
     val followedYouTubeChannels: List<YouTubeChannel> = emptyList(),
     val musicSettings: MusicSettings? = null,
     val dashboardLogs: List<DashboardLog> = emptyList(),
+    val tempBans: List<TempBan>? = emptyList(),
+    val serverLogModule: ServerLogModule? = null
+)
+
+@Serializable
+data class ModerationUtils(
+    val channelToSendPunishments: String? = null,
+    val sendPunishmentsToAChannel: Boolean = false,
+    val customPunishmentMessage: String? = null,
+    val customPunishmentDmMessage: String? = null,
+    val sendPunishmentsToDm: Boolean? = false
+)
+
+@Serializable
+data class TempBan(
+    val userId: String,
+    val reason: String,
+    val bannedBy: String,
+    @Serializable(with = MongoDateSerializer::class)
+    val duration: Instant? = null,
+)
+
+@Serializable
+data class ServerLogModule(
+    val channelToSendLogs: String? = null,
+    val channelToSendExpiredBans: String? = null,
+    val sendExpiredBansLogs: Boolean? = false,
+    val sendVoiceChannelLogs: Boolean? = false,
+    val sendDeletedMessagesLogs: Boolean? = false,
+    val sendUpdatedMessagesLogs: Boolean? = false
 )
 
 @Serializable

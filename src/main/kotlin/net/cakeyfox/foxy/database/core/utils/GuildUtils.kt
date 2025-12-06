@@ -1,16 +1,23 @@
 package net.cakeyfox.foxy.database.core.utils
 
 import GuildBuilder
+import TempBanBuilder
 import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.bson.Document
 import kotlin.reflect.KClass
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.node.ObjectNode
+import com.mongodb.client.model.Filters
 import kotlinx.coroutines.flow.firstOrNull
 import mu.KotlinLogging
 import com.mongodb.client.model.Filters.eq
+import com.mongodb.client.model.Updates
+import com.mongodb.client.model.Updates.pull
+import com.mongodb.client.model.Updates.push
 import kotlinx.coroutines.flow.toList
+import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
 import net.cakeyfox.foxy.database.core.DatabaseClient
 import net.cakeyfox.foxy.database.data.guild.AntiRaidModule
 import net.cakeyfox.foxy.database.data.guild.AutoRoleModule
@@ -18,7 +25,10 @@ import net.cakeyfox.foxy.database.data.guild.FoxyverseGuild
 import net.cakeyfox.foxy.database.data.guild.Guild
 import net.cakeyfox.foxy.database.data.guild.GuildSettings
 import net.cakeyfox.foxy.database.data.guild.Key
+import net.cakeyfox.foxy.database.data.guild.ModerationUtils
 import net.cakeyfox.foxy.database.data.guild.MusicSettings
+import net.cakeyfox.foxy.database.data.guild.ServerLogModule
+import net.cakeyfox.foxy.database.data.guild.TempBan
 import net.cakeyfox.foxy.database.data.guild.WelcomerModule
 import kotlin.reflect.full.memberProperties
 
@@ -31,6 +41,41 @@ class GuildUtils(
         return client.withRetry {
             val query = Document("_id", guildId)
             client.foxyverseGuilds.find(query).firstOrNull()
+        }
+    }
+
+    suspend fun getAllExpiredBans(): Map<String, List<TempBan>> {
+        return client.withRetry {
+            val guildsCollection = client.database.getCollection<Document>("guilds")
+            val now = Clock.System.now()
+
+            val allGuilds = guildsCollection.find().toList()
+
+            allGuilds.mapNotNull { guildDoc ->
+                val guildJson = guildDoc.toJson()
+                val guild = client.json.decodeFromString<Guild>(guildJson)
+                val expiredBans = guild.tempBans.orEmpty().filter { it.duration != null && it.duration <= now }
+
+                if (expiredBans.isNotEmpty()) guild._id to expiredBans else null
+            }.toMap()
+        }
+    }
+
+    suspend fun addTempBanToGuild(guildId: String, tempBan: TempBan) {
+        return client.withRetry {
+            client.guilds.updateOne(
+                eq("_id", guildId),
+                push("tempBans", tempBan)
+            )
+        }
+    }
+
+    suspend fun removeTempBanFromGuild(guildId: String, userId: String) {
+        return client.withRetry {
+            client.guilds.updateOne(
+                eq("_id", guildId),
+                pull("tempBans", eq("userId", userId))
+            )
         }
     }
 
@@ -87,6 +132,8 @@ class GuildUtils(
                 AutoRoleModule = AutoRoleModule(),
                 guildSettings = GuildSettings(),
                 musicSettings = MusicSettings(),
+                serverLogModule = ServerLogModule(),
+                moderationUtils = ModerationUtils()
             )
 
             val documentToJSON = client.json.encodeToString(newGuild)
@@ -162,6 +209,8 @@ class GuildUtils(
             WelcomerModule::class -> WelcomerModule()
             GuildSettings::class -> GuildSettings()
             MusicSettings::class -> MusicSettings()
+            ServerLogModule::class -> ServerLogModule()
+            ModerationUtils::class -> ModerationUtils()
             else -> null
         }
     }
