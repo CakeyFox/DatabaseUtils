@@ -25,8 +25,8 @@ class GuildBuilder {
         guildAddedAt?.let { setOps["guildAddedAt"] = it }
 
         setOps.putAll(serverLogModule.toDocument("serverLogModule"))
-        setOps.putAll(guildJoinLeaveModule.toDocument("guildJoinLeaveModule"))
-        setOps.putAll(autoRoleModule.toDocument("autoRoleModule"))
+        setOps.putAll(guildJoinLeaveModule.toDocument("GuildJoinLeaveModule"))
+        setOps.putAll(autoRoleModule.toDocument("AutoRoleModule"))
         setOps.putAll(antiRaidModule.toDocument("antiRaidModule"))
         setOps.putAll(guildSettings.toDocument("guildSettings"))
         setOps.putAll(musicSettings.toDocument("musicSettings"))
@@ -84,12 +84,20 @@ class WelcomerModuleBuilder {
     var joinMessage: String? = null
     var leaveMessage: String? = null
     var alertWhenUserLeaves: Boolean? = null
+    var sendDmWelcomeMessage: Boolean? = false
+    var dmWelcomeMessage: String? = null
+    var leaveChannel: String? = null
+    var joinChannel: String? = null
 
     fun toDocument(prefix: String): Map<String, Any?> {
         val map = mutableMapOf<String, Any?>()
+        sendDmWelcomeMessage?.let { map["$prefix.sendDmWelcomeMessage"] = it }
+        dmWelcomeMessage?.let { map["$prefix.dmWelcomeMessage"] = it }
         isEnabled?.let { map["$prefix.isEnabled"] = it }
         joinMessage?.let { map["$prefix.joinMessage"] = it }
         leaveMessage?.let { map["$prefix.leaveMessage"] = it }
+        leaveChannel?.let { map["$prefix.leaveChannel"] = it }
+        joinChannel?.let { map["$prefix.joinChannel"] = it }
         alertWhenUserLeaves?.let { map["$prefix.alertWhenUserLeaves"] = it }
         return map
     }

@@ -1,4 +1,4 @@
-package net.cakeyfox.foxy.database.utils
+package net.cakeyfox.foxy.database.common.data
 
 import kotlinx.datetime.Instant
 import kotlinx.serialization.ExperimentalSerializationApi
@@ -17,6 +17,7 @@ import kotlinx.serialization.json.*
  *   - {"$date": {"$numberLong": "1640630250393"}}
  *   - 1640630250393 (raw)
  */
+
 object MongoDateSerializer : KSerializer<Instant?> {
     override val descriptor: SerialDescriptor =
         PrimitiveSerialDescriptor("MongoDate", PrimitiveKind.STRING)

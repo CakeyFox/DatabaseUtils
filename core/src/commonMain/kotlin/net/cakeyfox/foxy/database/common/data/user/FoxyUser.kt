@@ -3,7 +3,7 @@ package net.cakeyfox.foxy.database.data.user
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlinx.serialization.Serializable
-import net.cakeyfox.foxy.database.utils.MongoDateSerializer
+import net.cakeyfox.foxy.database.common.data.MongoDateSerializer
 
 @Serializable
 data class FoxyUser(

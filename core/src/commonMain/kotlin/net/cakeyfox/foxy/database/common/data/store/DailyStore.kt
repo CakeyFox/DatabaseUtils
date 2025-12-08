@@ -2,7 +2,7 @@ package net.cakeyfox.foxy.database.data.store
 
 import kotlinx.datetime.Instant
 import kotlinx.serialization.Serializable
-import net.cakeyfox.foxy.database.utils.MongoDateSerializer
+import net.cakeyfox.foxy.database.common.data.MongoDateSerializer
 
 @Serializable
 data class DailyStore(
