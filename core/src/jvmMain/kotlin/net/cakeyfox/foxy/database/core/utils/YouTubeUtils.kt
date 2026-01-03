@@ -4,9 +4,11 @@ import com.mongodb.client.model.Filters.and
 import com.mongodb.client.model.Filters.eq
 import com.mongodb.client.model.ReplaceOptions
 import com.mongodb.client.model.UpdateOptions
+import com.mongodb.client.model.Updates.combine
 import com.mongodb.client.model.Updates.pull
 import com.mongodb.client.model.Updates.push
 import com.mongodb.client.model.Updates.set
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.toList
 import mu.KotlinLogging
@@ -57,14 +59,22 @@ class YouTubeUtils(
         }
     }
 
-    suspend fun updateChannelCustomMessage(guildId: String, channelId: String, message: String?) {
+    suspend fun updateChannelCustomMessage(
+        guildId: String,
+        youtubeChannelId: String,
+        discordChannelId: String?,
+        message: String?
+    ) {
         client.withRetry {
             client.guilds.updateOne(
                 and(
                     eq("_id", guildId),
-                    eq("followedYouTubeChannels.channelId", channelId)
+                    eq("followedYouTubeChannels.channelId", youtubeChannelId)
                 ),
-                set("followedYouTubeChannels.$.notificationMessage", message)
+                combine(
+                    set("followedYouTubeChannels.$.notificationMessage", message),
+                    if (discordChannelId != null) set("followedYouTubeChannels.$.channelToSend", discordChannelId) else null,
+                )
             )
         }
     }

@@ -144,9 +144,9 @@ class GuildSettingsBuilder {
         language?.let { map["$prefix.language"] = it }
         sendMessageIfChannelIsBlocked?.let { map["$prefix.sendMessageIfChannelIsBlocked"] = it }
         deleteMessageIfCommandIsExecuted?.let { map["$prefix.deleteMessageIfCommandIsExecuted"] = it }
-        if (blockedChannels.isNotEmpty()) map["$prefix.blockedChannels"] = blockedChannels
-        if (usersWhoCanAccessDashboard.isNotEmpty()) map["$prefix.usersWhoCanAccessDashboard"] = usersWhoCanAccessDashboard
-        if (disabledCommands.isNotEmpty()) map["$prefix.disabledCommands"] = disabledCommands
+        map["$prefix.blockedChannels"] = blockedChannels
+        map["$prefix.usersWhoCanAccessDashboard"] = usersWhoCanAccessDashboard
+        map["$prefix.disabledCommands"] = disabledCommands
         return map
     }
 }

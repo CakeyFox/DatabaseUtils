@@ -10,14 +10,20 @@ import com.mongodb.client.model.Filters.eq
 import com.mongodb.client.model.Filters.exists
 import com.mongodb.client.model.Filters.lt
 import com.mongodb.client.model.Filters.ne
+import com.mongodb.client.model.Filters.or
+import com.mongodb.client.model.FindOneAndUpdateOptions
 import com.mongodb.client.model.Indexes.descending
 import com.mongodb.client.model.Projections.include
+import com.mongodb.client.model.ReturnDocument
 import com.mongodb.client.model.Sorts.ascending
 import com.mongodb.client.model.UpdateOptions
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.toList
 import kotlinx.datetime.Clock
 import kotlinx.datetime.toJavaInstant
+import kotlinx.datetime.toKotlinInstant
+import net.cakeyfox.foxy.database.common.data.marry.CoupleStoreItem
+import net.cakeyfox.foxy.database.common.data.marry.Marry
 import net.cakeyfox.foxy.database.core.DatabaseClient
 import net.cakeyfox.foxy.database.data.guild.Key
 import net.cakeyfox.foxy.database.data.user.FoxyUser
@@ -30,11 +36,13 @@ import net.cakeyfox.foxy.database.data.user.UserCakes
 import net.cakeyfox.foxy.database.data.user.UserPremium
 import net.cakeyfox.foxy.database.data.user.UserProfile
 import net.cakeyfox.foxy.database.data.user.UserSettings
+import net.cakeyfox.foxy.database.utils.builders.MarryBuilder
 import java.time.Instant
 import java.time.ZoneId
 import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit
 import java.util.Date
+import java.util.UUID
 
 class UserUtils(private val client: DatabaseClient) {
     suspend fun getUserByPremiumKey(key: String): FoxyUser? {
@@ -115,6 +123,7 @@ class UserUtils(private val client: DatabaseClient) {
         }
     }
 
+
     suspend fun addVote(userId: String) {
         val userData = getFoxyProfile(userId)
         client.withRetry {
@@ -190,6 +199,91 @@ class UserUtils(private val client: DatabaseClient) {
             client.users.updateOne(query, update)
         }
     }
+
+    suspend fun getItemFromCoupleShop(itemId: String): CoupleStoreItem? {
+        return client.withRetry {
+            val store = client.database.getCollection<CoupleStoreItem>("couple_shop")
+            val filter = eq("_id", itemId)
+
+            store.find(filter).firstOrNull()
+        }
+    }
+
+    suspend fun updateMarriage(
+        userId: String,
+        block: MarryBuilder.() -> Unit
+    ): Marry? {
+        val builder = MarryBuilder().apply(block)
+
+        return client.withRetry {
+            val marriages = client.database.getCollection<Marry>("marriages")
+
+            val filter = or(
+                eq("firstUserId", userId),
+                eq("secondUserId", userId)
+            )
+
+            val update = builder.toDocument()
+
+            marriages.findOneAndUpdate(
+                filter,
+                update,
+                FindOneAndUpdateOptions()
+                    .returnDocument(ReturnDocument.AFTER)
+            )
+        }
+    }
+
+    suspend fun createMarriage(requesterId: String, userId: String, marriageName: String): Marry {
+        return client.withRetry {
+            val collection = client.database.getCollection<Document>("marriages")
+            val uuidv4 = UUID.randomUUID()
+            val date = ZonedDateTime.now(ZoneId.systemDefault()).toInstant()
+
+            val newMarriage = Marry(
+                marryId = uuidv4.toString(),
+                marriedDate = date.toKotlinInstant(),
+                firstUserId = requesterId,
+                marriageName = marriageName,
+                secondUserId = userId,
+                firstUserLetters = 0,
+                secondUserLetters = 0,
+                affinityPoints = 0
+            )
+
+            val documentToJSON = client.json.encodeToString(newMarriage)
+            val document = Document.parse(documentToJSON)
+            collection.insertOne(document)
+
+            newMarriage
+        }
+    }
+
+    suspend fun deleteMarriage(userId: String) {
+        client.withRetry {
+            val collection = client.database.getCollection<Document>("marriages")
+
+            val filter = or(
+                eq("firstUserId", userId),
+                eq("secondUserId", userId)
+            )
+
+            collection.findOneAndDelete(filter)
+
+        }
+    }
+
+    suspend fun getMarriage(userId: String): Marry? =
+        client.withRetry {
+            val marriages = client.database.getCollection<Marry>("marriages")
+
+            marriages.find(
+                or(
+                    eq("firstUserId", userId),
+                    eq("secondUserId", userId)
+                )
+            ).firstOrNull()
+        }
 
     private suspend fun createUser(userId: String): FoxyUser {
         return client.withRetry {
