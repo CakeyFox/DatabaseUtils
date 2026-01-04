@@ -219,8 +219,8 @@ class UserUtils(private val client: DatabaseClient) {
             val marriages = client.database.getCollection<Marry>("marriages")
 
             val filter = or(
-                eq("firstUserId", userId),
-                eq("secondUserId", userId)
+                eq("firstUser.id", userId),
+                eq("secondUser.id", userId)
             )
 
             val update = builder.toDocument()
