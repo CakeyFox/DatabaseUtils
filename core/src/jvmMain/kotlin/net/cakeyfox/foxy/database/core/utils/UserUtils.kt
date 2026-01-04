@@ -243,11 +243,16 @@ class UserUtils(private val client: DatabaseClient) {
             val newMarriage = Marry(
                 marryId = uuidv4.toString(),
                 marriedDate = date.toKotlinInstant(),
-                firstUserId = requesterId,
-                marriageName = marriageName,
-                secondUserId = userId,
-                firstUserLetters = 0,
-                secondUserLetters = 0,
+                firstUser = Marry.User(
+                    id = requesterId,
+                    letterCount = 0,
+                    lastLetter = null
+                ),
+                secondUser = Marry.User(
+                    id = userId,
+                    letterCount = 0,
+                    lastLetter = null
+                ),
                 affinityPoints = 0
             )
 
@@ -264,8 +269,8 @@ class UserUtils(private val client: DatabaseClient) {
             val collection = client.database.getCollection<Document>("marriages")
 
             val filter = or(
-                eq("firstUserId", userId),
-                eq("secondUserId", userId)
+                eq("firstUser.id", userId),
+                eq("secondUser.id", userId)
             )
 
             collection.findOneAndDelete(filter)
@@ -279,8 +284,8 @@ class UserUtils(private val client: DatabaseClient) {
 
             marriages.find(
                 or(
-                    eq("firstUserId", userId),
-                    eq("secondUserId", userId)
+                    eq("firstUser.id", userId),
+                    eq("secondUser.id", userId)
                 )
             ).firstOrNull()
         }
