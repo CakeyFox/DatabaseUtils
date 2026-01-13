@@ -37,6 +37,7 @@ data class FontSize(
     val married: Int,
     val marriedSince: Int,
     val aboutme: Int,
+    val avatarSize: Float? = null
 )
 
 @Serializable
