@@ -54,6 +54,9 @@ class ServerLogModule {
     var sendDeletedMessagesLogs: Boolean? = null
     var sendUpdatedMessagesLogs: Boolean? = null
     var channelToSendExpiredBans: String? = null
+    var sendMessageUpdateLogsToChannel: String? = null
+    var sendMessageDeleteLogsToChannel: String? = null
+    var sendVoiceLogsToChannel: String? = null
     var sendExpiredBansLogs: Boolean? = false
 
     fun toDocument(prefix: String): Map<String, Any?> {
@@ -63,7 +66,9 @@ class ServerLogModule {
         sendVoiceChannelLogs?.let { map["$prefix.sendVoiceChannelLogs"] = it }
         sendDeletedMessagesLogs?.let { map["$prefix.sendDeletedMessagesLogs"] = it }
         sendUpdatedMessagesLogs?.let { map["$prefix.sendUpdatedMessagesLogs"] = it }
-
+        sendMessageUpdateLogsToChannel?.let { map["$prefix.sendMessageUpdateLogsToChannel"] = it }
+        sendMessageDeleteLogsToChannel?.let { map["$prefix.sendMessageDeleteLogsToChannel"] = it }
+        sendVoiceLogsToChannel?.let { map["$prefix.sendVoiceLogsToChannel"] = it }
         return map
     }
 }

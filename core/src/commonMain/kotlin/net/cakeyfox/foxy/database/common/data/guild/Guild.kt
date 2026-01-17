@@ -43,6 +43,9 @@ data class ServerLogModule(
     val channelToSendLogs: String? = null,
     val channelToSendExpiredBans: String? = null,
     val sendExpiredBansLogs: Boolean? = false,
+    val sendVoiceLogsToChannel: String? = null,
+    val sendMessageDeleteLogsToChannel: String? = null,
+    val sendMessageUpdateLogsToChannel: String? = null,
     val sendVoiceChannelLogs: Boolean? = false,
     val sendDeletedMessagesLogs: Boolean? = false,
     val sendUpdatedMessagesLogs: Boolean? = false
