@@ -74,51 +74,36 @@ class ProfileUtils(
         return collection.find(query).toList()
     }
 
-    suspend fun getBackground(backgroundId: String): Background {
+    suspend fun getBackground(backgroundId: String): Background? {
         return client.withRetry {
             val collection = client.database.getCollection<Document>("backgrounds")
 
             val query = Document("id", backgroundId)
-            val existingDocument = collection.find(query).firstOrNull()
-
-            if (existingDocument == null) {
-                logger.error { "Background $backgroundId not found" }
-                throw Exception("Background $backgroundId not found")
-            }
+            val existingDocument = collection.find(query).firstOrNull() ?: return@withRetry null
 
             val documentToJSON = existingDocument.toJson()
             client.json.decodeFromString<Background>(documentToJSON!!)
         }
     }
 
-    suspend fun getLayout(layoutId: String): Layout {
+    suspend fun getLayout(layoutId: String): Layout? {
         return client.withRetry {
             val collection = client.database.getCollection<Document>("layouts")
 
             val query = Document("id", layoutId)
-            val existingDocument = collection.find(query).firstOrNull()
-
-            if (existingDocument == null) {
-                logger.error { "Layout $layoutId not found" }
-                throw Exception("Layout $layoutId not found")
-            }
+            val existingDocument = collection.find(query).firstOrNull() ?: return@withRetry null
 
             val documentToJSON = existingDocument.toJson()
             client.json.decodeFromString<Layout>(documentToJSON!!)
         }
     }
 
-    suspend fun getDecoration(decorationId: String): Decoration {
+    suspend fun getDecoration(decorationId: String): Decoration? {
         return client.withRetry {
             val collection = client.database.getCollection<Document>("decorations")
 
             val query = Document("id", decorationId)
-            val existingDocument = collection.find(query).firstOrNull()
-
-            if (existingDocument == null) {
-                logger.error { "Decoration $decorationId not found" }
-                throw Exception("Decoration $decorationId not found")
-            }
+            val existingDocument = collection.find(query).firstOrNull() ?: return@withRetry null
 
             val documentToJSON = existingDocument.toJson()
             client.json.decodeFromString<Decoration>(documentToJSON!!)
