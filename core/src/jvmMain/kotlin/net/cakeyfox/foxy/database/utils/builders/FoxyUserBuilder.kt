@@ -46,7 +46,11 @@ class FoxyUserBuilder {
         return doc
     }
 
-    private fun mergeBuilderMaps(builderDoc: Document, setMap: MutableMap<String, Any?>, incMap: MutableMap<String, Any?>) {
+    private fun mergeBuilderMaps(
+        builderDoc: Document,
+        setMap: MutableMap<String, Any?>,
+        incMap: MutableMap<String, Any?>
+    ) {
         builderDoc.forEach { (key, value) ->
             when (key) {
                 "\$set" -> setMap.putAll(value as Map<String, Any?>)
@@ -64,6 +68,7 @@ class UserProfileBuilder {
     var disabledBadges: List<String>? = null
     val backgroundList = mutableListOf<String>()
     val layoutList = mutableListOf<String>()
+    var decoration: String? = null
     var lastRep: Instant? = null
     var repCount: Int? = null
 
@@ -76,6 +81,7 @@ class UserProfileBuilder {
         if (layoutList.isNotEmpty()) map["$prefix.layoutList"] = layoutList
         disabledBadges?.let { map["$prefix.disabledBadges"] = it }
         lastRep?.let { map["$prefix.lastRep"] = it.toBsonDate() }
+        decoration?.let { map["$prefix.decoration"] = it }
         repCount?.let { map["$prefix.repCount"] = it }
 
         return Document(map)
