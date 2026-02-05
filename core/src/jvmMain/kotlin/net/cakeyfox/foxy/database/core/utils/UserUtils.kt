@@ -169,6 +169,15 @@ class UserUtils(private val client: DatabaseClient) {
         }
     }
 
+    suspend fun getCakesLeaderboard(): List<FoxyUser> {
+        val collection = client.database.getCollection<FoxyUser>("users")
+
+        return collection
+            .find(Document("userCakes.balance", Document("\$gt", 0)))
+            .sort(Document("userCakes.balance", -1))
+            .toList()
+    }
+
     suspend fun getCakesLeaderboardPage(page: Int, pageSize: Int? = 10): List<FoxyUser> {
         val skip = (page - 1) * pageSize!!
 
