@@ -169,13 +169,19 @@ class UserUtils(private val client: DatabaseClient) {
         }
     }
 
-    suspend fun getCakesLeaderboard(): List<FoxyUser> {
+    suspend fun getUserRankPosition(userId: String): Int {
         val collection = client.database.getCollection<FoxyUser>("users")
 
-        return collection
-            .find(Document("userCakes.balance", Document("\$gt", 0)))
-            .sort(Document("userCakes.balance", -1))
-            .toList()
+        val currentUser = collection.find(Document("_id", userId)).firstOrNull()
+            ?: return -1
+
+        val userCakes = currentUser.userCakes.balance
+
+        val countAbove = collection.countDocuments(
+            Document("userCakes.balance", Document("\$gt", userCakes))
+        )
+
+        return (countAbove + 1).toInt()
     }
 
     suspend fun getCakesLeaderboardPage(page: Int, pageSize: Int? = 10): List<FoxyUser> {
