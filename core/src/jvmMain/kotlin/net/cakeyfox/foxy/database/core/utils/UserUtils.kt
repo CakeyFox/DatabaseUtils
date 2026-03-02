@@ -1,23 +1,17 @@
 package net.cakeyfox.foxy.database.core.utils
 
 
-import FoxyUserBuilder
-import com.mongodb.client.model.Aggregates.skip
+import net.cakeyfox.foxy.database.utils.builders.FoxyUserBuilder
 import com.mongodb.client.model.Filters.and
 import org.bson.Document
 import kotlinx.coroutines.flow.firstOrNull
 import com.mongodb.client.model.Filters.eq
 import com.mongodb.client.model.Filters.exists
 import com.mongodb.client.model.Filters.lt
-import com.mongodb.client.model.Filters.ne
 import com.mongodb.client.model.Filters.or
 import com.mongodb.client.model.FindOneAndUpdateOptions
-import com.mongodb.client.model.Indexes.descending
-import com.mongodb.client.model.Projections.include
 import com.mongodb.client.model.ReturnDocument
-import com.mongodb.client.model.Sorts.ascending
 import com.mongodb.client.model.UpdateOptions
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.toList
 import kotlinx.datetime.Clock
 import kotlinx.datetime.toJavaInstant

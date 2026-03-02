@@ -1,3 +1,5 @@
+package net.cakeyfox.foxy.database.utils.builders
+
 import org.bson.Document
 import kotlinx.datetime.Instant
 import kotlinx.datetime.toJavaInstant
@@ -11,6 +13,7 @@ class FoxyUserBuilder {
     val userSettings = UserSettingsBuilder()
     val userBirthday = UserBirthdayBuilder()
     val roulette = RouletteBuilder()
+    val notifications = NotificationsBuilder()
 
     var isBanned: Boolean? = null
     var banReason: String? = null
@@ -39,6 +42,7 @@ class FoxyUserBuilder {
         mergeBuilderMaps(userSettings.toDocument("userSettings"), setMap, incMap)
         mergeBuilderMaps(userBirthday.toDocument("userBirthday"), setMap, incMap)
         mergeBuilderMaps(roulette.toDocument("roulette"), setMap, incMap)
+        mergeBuilderMaps(notifications.toDocument("notifications"), setMap, incMap)
 
         val doc = Document()
         if (setMap.isNotEmpty()) doc["\$set"] = setMap
@@ -58,6 +62,25 @@ class FoxyUserBuilder {
                 else -> setMap[key] = value
             }
         }
+    }
+}
+
+class NotificationsBuilder {
+    var disableTempBanNotifications: Boolean? = false
+    var disableBirthdayNotifications: Boolean? = false
+    var disableDailyReminderNotifications: Boolean? = false
+    var disableInactivityTaxNotifications: Boolean? = false
+    var disableUpvoteNotifications: Boolean? = false
+
+    fun toDocument(prefix: String): Document {
+        val map = mutableMapOf<String, Any?>()
+        disableTempBanNotifications?.let { map["$prefix.disableTempBanNotifications"] = it }
+        disableBirthdayNotifications?.let { map["$prefix.disableBirthdayNotifications"] = it }
+        disableDailyReminderNotifications?.let { map["$prefix.disableDailyReminderNotifications"] = it }
+        disableInactivityTaxNotifications?.let { map["$prefix.disableInactivityTaxNotifications"] = it }
+        disableUpvoteNotifications?.let { map["$prefix.disableUpvoteNotifications"] = it }
+
+        return Document(map)
     }
 }
 
