@@ -17,6 +17,7 @@ import kotlinx.datetime.Clock
 import net.cakeyfox.foxy.database.core.DatabaseClient
 import net.cakeyfox.foxy.database.data.guild.AntiRaidModule
 import net.cakeyfox.foxy.database.data.guild.AutoRoleModule
+import net.cakeyfox.foxy.database.data.guild.DashboardLog
 import net.cakeyfox.foxy.database.data.guild.FoxyverseGuild
 import net.cakeyfox.foxy.database.data.guild.Guild
 import net.cakeyfox.foxy.database.data.guild.GuildSettings
@@ -54,6 +55,19 @@ class GuildUtils(
 
                 if (expiredBans.isNotEmpty()) guild._id to expiredBans else null
             }.toMap()
+        }
+    }
+
+    suspend fun addLogToGuild(guildId: String, authorId: String, actionType: String) {
+        return client.withRetry {
+            client.guilds.updateOne(
+                eq("_id", guildId),
+                push("dashboardLogs", DashboardLog(
+                    authorId,
+                    actionType,
+                    date = Clock.System.now().toEpochMilliseconds()
+                ))
+            )
         }
     }
 
