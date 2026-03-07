@@ -15,9 +15,17 @@ data class Guild(
     val moderationUtils: ModerationUtils? = null,
     val followedYouTubeChannels: List<YouTubeChannel> = emptyList(),
     val musicSettings: MusicSettings? = null,
+    val guildPremium: GuildPremium? = null,
     val dashboardLogs: List<DashboardLog> = emptyList(),
     val tempBans: List<TempBan>? = emptyList(),
     val serverLogModule: ServerLogModule? = null
+)
+
+@Serializable
+data class GuildPremium(
+    @Serializable(with = MongoDateSerializer::class)
+    val premiumDate: Instant? = null,
+    val premiumType: String? = null
 )
 
 @Serializable
