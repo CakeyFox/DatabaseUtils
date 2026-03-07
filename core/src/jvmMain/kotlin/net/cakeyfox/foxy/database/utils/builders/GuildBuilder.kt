@@ -13,8 +13,6 @@ class GuildBuilder {
     val musicSettings = MusicSettingsBuilder()
     val serverLogModule = ServerLogModule()
     val moderationUtils = ModerationUtilsBuilder()
-    val guildPremium = GuildPremiumBuilder()
-
     var guildAddedAt: Long? = null
     val followedYouTubeChannels = mutableListOf<YouTubeChannelBuilder>()
     val dashboardLogs = mutableListOf<DashboardLogBuilder>()
@@ -32,7 +30,6 @@ class GuildBuilder {
         setOps.putAll(guildSettings.toDocument("guildSettings"))
         setOps.putAll(musicSettings.toDocument("musicSettings"))
         setOps.putAll(moderationUtils.toDocument("moderationUtils"))
-        setOps.putAll(guildPremium.toDocument("guildPremium"))
 
 
         if (followedYouTubeChannels.isNotEmpty()) {
@@ -133,18 +130,6 @@ class AntiRaidModuleBuilder {
         handleMultipleJoins?.let { map["$prefix.handleMultipleJoins"] = it }
         messagesThreshold?.let { map["$prefix.messagesThreshold"] = it }
         return map
-    }
-}
-
-class GuildPremiumBuilder {
-    var premiumDate: Instant? = null
-    var premiumType: String? = null
-
-    fun toDocument(prefix: String): Document {
-        val map = mutableMapOf<String, Any?>()
-        premiumType?.let { map["$prefix.premiumType"] = it }
-        premiumDate?.let { map["$prefix.premiumDate"] = it.toBsonDate() }
-        return Document(map)
     }
 }
 
