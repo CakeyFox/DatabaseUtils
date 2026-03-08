@@ -12,12 +12,21 @@ data class Guild(
     val AutoRoleModule: AutoRoleModule? = null,
     val antiRaidModule: AntiRaidModule? = null,
     val guildSettings: GuildSettings,
+    val inviteBlockerSettings: InviteBlockerSettings? = null,
     val moderationUtils: ModerationUtils? = null,
     val followedYouTubeChannels: List<YouTubeChannel> = emptyList(),
     val musicSettings: MusicSettings? = null,
     val dashboardLogs: List<DashboardLog> = emptyList(),
     val tempBans: List<TempBan>? = emptyList(),
     val serverLogModule: ServerLogModule? = null
+)
+
+@Serializable
+data class InviteBlockerSettings(
+    val isEnabled: Boolean = false,
+    val channelsThatCanSendInvites: List<String>? = emptyList(),
+    val rolesThatCanSendInvites: List<String>? = emptyList(),
+    val message: String? = ""
 )
 
 @Serializable

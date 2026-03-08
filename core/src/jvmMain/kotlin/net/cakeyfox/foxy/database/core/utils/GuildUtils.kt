@@ -21,6 +21,7 @@ import net.cakeyfox.foxy.database.data.guild.DashboardLog
 import net.cakeyfox.foxy.database.data.guild.FoxyverseGuild
 import net.cakeyfox.foxy.database.data.guild.Guild
 import net.cakeyfox.foxy.database.data.guild.GuildSettings
+import net.cakeyfox.foxy.database.data.guild.InviteBlockerSettings
 import net.cakeyfox.foxy.database.data.guild.Key
 import net.cakeyfox.foxy.database.data.guild.ModerationUtils
 import net.cakeyfox.foxy.database.data.guild.MusicSettings
@@ -217,6 +218,7 @@ class GuildUtils(
             AntiRaidModule::class -> AntiRaidModule()
             AutoRoleModule::class -> AutoRoleModule()
             WelcomerModule::class -> WelcomerModule()
+            InviteBlockerSettings::class -> InviteBlockerSettings()
             GuildSettings::class -> GuildSettings()
             MusicSettings::class -> MusicSettings()
             ServerLogModule::class -> ServerLogModule()

@@ -4,6 +4,7 @@ import kotlinx.datetime.Instant
 import net.cakeyfox.foxy.database.data.guild.YouTubeChannel
 import org.bson.Document
 import kotlin.collections.map
+import kotlin.collections.mutableListOf
 
 class GuildBuilder {
     val guildJoinLeaveModule = WelcomerModuleBuilder()
@@ -13,6 +14,7 @@ class GuildBuilder {
     val musicSettings = MusicSettingsBuilder()
     val serverLogModule = ServerLogModule()
     val moderationUtils = ModerationUtilsBuilder()
+    val inviteBlockerSettings = InviteBlockerSettingsBuilder()
     var guildAddedAt: Long? = null
     val followedYouTubeChannels = mutableListOf<YouTubeChannelBuilder>()
     val dashboardLogs = mutableListOf<DashboardLogBuilder>()
@@ -30,7 +32,7 @@ class GuildBuilder {
         setOps.putAll(guildSettings.toDocument("guildSettings"))
         setOps.putAll(musicSettings.toDocument("musicSettings"))
         setOps.putAll(moderationUtils.toDocument("moderationUtils"))
-
+        setOps.putAll(inviteBlockerSettings.toDocument("inviteBlockerSettings"))
 
         if (followedYouTubeChannels.isNotEmpty()) {
             setOps["followedYouTubeChannels"] = followedYouTubeChannels.map { it.toMap() }
@@ -129,6 +131,23 @@ class AntiRaidModuleBuilder {
         handleMultipleMessages?.let { map["$prefix.handleMultipleMessages"] = it }
         handleMultipleJoins?.let { map["$prefix.handleMultipleJoins"] = it }
         messagesThreshold?.let { map["$prefix.messagesThreshold"] = it }
+        return map
+    }
+}
+
+class InviteBlockerSettingsBuilder {
+    var isEnabled: Boolean? = false
+    var channelsThatCanSendInvites = mutableListOf<String>()
+    var rolesThatCanSendInvites = mutableListOf<String>()
+    var message: String? = ""
+
+    fun toDocument(prefix: String): Map<String, Any?> {
+        val map = mutableMapOf<String, Any?>()
+        this.isEnabled?.let { map["$prefix.isEnabled"] = it }
+        this.message?.let { map["$prefix.message"] = it}
+        map["$prefix.channelsThatCanSendInvites"] = channelsThatCanSendInvites
+        map["$prefix.rolesThatCanSendInvites"] = rolesThatCanSendInvites
+
         return map
     }
 }
