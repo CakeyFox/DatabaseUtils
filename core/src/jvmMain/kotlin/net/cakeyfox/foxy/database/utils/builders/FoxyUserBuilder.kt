@@ -67,7 +67,6 @@ class FoxyUserBuilder {
 
 class NotificationsBuilder {
     var disableTempBanNotifications: Boolean? = false
-    var disableBirthdayNotifications: Boolean? = false
     var disableDailyReminderNotifications: Boolean? = false
     var disableInactivityTaxNotifications: Boolean? = false
     var disableUpvoteNotifications: Boolean? = false
@@ -75,7 +74,6 @@ class NotificationsBuilder {
     fun toDocument(prefix: String): Document {
         val map = mutableMapOf<String, Any?>()
         disableTempBanNotifications?.let { map["$prefix.disableTempBanNotifications"] = it }
-        disableBirthdayNotifications?.let { map["$prefix.disableBirthdayNotifications"] = it }
         disableDailyReminderNotifications?.let { map["$prefix.disableDailyReminderNotifications"] = it }
         disableInactivityTaxNotifications?.let { map["$prefix.disableInactivityTaxNotifications"] = it }
         disableUpvoteNotifications?.let { map["$prefix.disableUpvoteNotifications"] = it }
@@ -158,14 +156,10 @@ class UserCakesBuilder {
 
 class MarryStatusBuilder {
     var cantMarry: Boolean? = null
-    var marriedWith: String? = null
-    var marriedDate: Instant? = null
 
     fun toDocument(prefix: String): Document {
         val map = mutableMapOf<String, Any?>()
         cantMarry?.let { map["$prefix.cantMarry"] = it }
-        marriedWith?.let { map["$prefix.marriedWith"] = it }
-        marriedDate?.let { map["$prefix.marriedDate"] = it.toBsonDate() }
         return Document(map)
     }
 }

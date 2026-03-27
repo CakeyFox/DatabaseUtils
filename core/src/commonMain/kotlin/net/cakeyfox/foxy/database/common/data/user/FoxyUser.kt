@@ -14,27 +14,24 @@ data class FoxyUser(
     @Serializable(with = MongoDateSerializer::class)
     val banDate: Instant? = null,
     val banReason: String? = null,
-    val userBirthday: UserBirthday ? = null,
-    val userCakes: UserCakes,
-    val marryStatus: MarryStatus,
-    val userProfile: UserProfile,
-    val userPremium: UserPremium,
-    val userSettings: UserSettings,
-    val petInfo: PetInfo? = null,
-    val lastRob: Long? = 0,
+    val userBirthday: UserBirthday = UserBirthday(),
+    val userCakes: UserCakes = UserCakes(),
+    val marryStatus: MarryStatus = MarryStatus(),
+    val userProfile: UserProfile = UserProfile(),
+    val userPremium: UserPremium = UserPremium(),
+    val userSettings: UserSettings = UserSettings(),
     val userTransactions: List<Transaction>? = emptyList(),
-    val roulette: Roulette? = null,
+    val roulette: Roulette = Roulette(),
     @Serializable(with = MongoDateSerializer::class)
     val lastVote: Instant? = null,
     val notifiedForVote: Boolean? = false,
     val voteCount: Int? = null,
-    val notifications: Notifications? = null
+    val notifications: Notifications = Notifications()
 )
 
 @Serializable
 data class Notifications(
     val disableTempBanNotifications: Boolean? = false,
-    val disableBirthdayNotifications: Boolean? = false,
     val disableDailyReminderNotifications: Boolean? = false,
     val disableInactivityTaxNotifications: Boolean? = false,
     val disableUpvoteNotifications: Boolean? = false

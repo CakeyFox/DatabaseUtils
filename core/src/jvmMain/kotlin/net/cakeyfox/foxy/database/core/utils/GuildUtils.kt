@@ -10,10 +10,17 @@ import com.fasterxml.jackson.databind.node.ObjectNode
 import kotlinx.coroutines.flow.firstOrNull
 import mu.KotlinLogging
 import com.mongodb.client.model.Filters.eq
+import com.mongodb.client.model.FindOneAndUpdateOptions
+import com.mongodb.client.model.ReturnDocument
 import com.mongodb.client.model.Updates.pull
 import com.mongodb.client.model.Updates.push
 import kotlinx.coroutines.flow.toList
 import kotlinx.datetime.Clock
+import kotlinx.datetime.DateTimeUnit
+import kotlinx.datetime.Instant
+import kotlinx.datetime.toJavaInstant
+import net.cakeyfox.foxy.database.common.data.guild.Case
+import net.cakeyfox.foxy.database.common.data.guild.CaseType
 import net.cakeyfox.foxy.database.core.DatabaseClient
 import net.cakeyfox.foxy.database.data.guild.AntiRaidModule
 import net.cakeyfox.foxy.database.data.guild.AutoRoleModule
@@ -28,7 +35,10 @@ import net.cakeyfox.foxy.database.data.guild.MusicSettings
 import net.cakeyfox.foxy.database.data.guild.ServerLogModule
 import net.cakeyfox.foxy.database.data.guild.TempBan
 import net.cakeyfox.foxy.database.data.guild.WelcomerModule
+import java.util.Date
+import java.util.concurrent.TimeUnit
 import kotlin.reflect.full.memberProperties
+import kotlin.time.Duration.Companion.days
 
 class GuildUtils(
     private val client: DatabaseClient
@@ -63,11 +73,13 @@ class GuildUtils(
         return client.withRetry {
             client.guilds.updateOne(
                 eq("_id", guildId),
-                push("dashboardLogs", DashboardLog(
-                    authorId,
-                    actionType,
-                    date = Clock.System.now().toEpochMilliseconds()
-                ))
+                push(
+                    "dashboardLogs", DashboardLog(
+                        authorId,
+                        actionType,
+                        date = Clock.System.now().toEpochMilliseconds()
+                    )
+                )
             )
         }
     }
@@ -101,6 +113,18 @@ class GuildUtils(
         return updateGuildWithNewFields(guildId)
     }
 
+    suspend fun getGuildsLeftMoreThan90Days(): List<Guild> {
+        return client.withRetry {
+            val ninetyDaysAgo = Date.from(
+                (Clock.System.now() - 90.days).toJavaInstant()
+            )
+
+            val query = Document("leftAt", Document("\$lt", ninetyDaysAgo))
+
+            client.guilds.find(query).toList()
+        }
+    }
+
     suspend fun getGuildOrNull(guildId: String): Guild? {
         return client.withRetry {
             val query = Document("_id", guildId)
@@ -128,6 +152,85 @@ class GuildUtils(
         client.withRetry {
             val guilds = client.database.getCollection<Document>("guilds")
             guilds.deleteOne(eq("_id", guildId))
+        }
+    }
+
+    suspend fun getCaseById(guildId: String, caseId: Long): Case? {
+        return client.withRetry {
+            val cases = client.database.getCollection<Case>("cases")
+
+            val filter = Document()
+                .append("guildId", guildId)
+                .append("caseId", caseId)
+
+            cases.find(filter).firstOrNull()
+        }
+    }
+
+    /**
+     * Register a punishment as a [Case] and stores the id
+     * @param guildId
+     * @param punishedMembers
+     * @param punishedStaff
+     * @param type The punishment [CaseType]
+     * @param reason
+     * @param punishmentDuration The punishment duration using [Instant]
+     */
+    suspend fun registerPunishmentAsCase(
+        guildId: String,
+        punishedMembers: List<String>,
+        staff: String,
+        type: CaseType,
+        reason: String? = null,
+        duration: Instant? = null,
+    ): Case {
+        return client.withRetry {
+            val caseId = getNextCaseId(guildId)
+
+            val case = Case(
+                guildId,
+                caseId,
+                reason,
+                duration,
+                Clock.System.now(),
+                type,
+                staff,
+                punishedMembers,
+                true,
+            )
+
+            val documentToJSON = client.json.encodeToString(case)
+            val document = Document.parse(documentToJSON)
+            client.database
+                .getCollection<Document>("cases")
+                .insertOne(document)
+
+            case
+        }
+    }
+
+    suspend fun getCaseByUserId(guildId: String, userId: String): List<Case> {
+        return client.withRetry {
+            val cases = client.database.getCollection<Case>("cases")
+
+            val filter = Document()
+                .append("guildId", guildId)
+                .append("members", userId)
+
+            return@withRetry cases.find(filter).toList()
+        }
+    }
+
+    private suspend fun getNextCaseId(guildId: String): Long {
+        return client.withRetry {
+            val result = client.guilds.findOneAndUpdate(
+                Document("_id", guildId),
+                Document("\$inc", Document("registeredCases", 1)),
+                FindOneAndUpdateOptions()
+                    .returnDocument(ReturnDocument.AFTER)
+            )
+
+            result?.registeredCases ?: 0
         }
     }
 
@@ -167,63 +270,7 @@ class GuildUtils(
 
             val documentToJSON = existingDocument.toJson()
 
-            val objectMapper = ObjectMapper()
-            objectMapper.enable(DeserializationFeature.USE_LONG_FOR_INTS)
-            val jsonNode = objectMapper.readTree(documentToJSON)
-
-            val updatedJsonNode = ensureFields(Guild::class, jsonNode, guildId)
-
-            val updatedGuild = client.json.decodeFromString<Guild>(updatedJsonNode.toString())
-
-            val updatedDocument = Document.parse(client.json.encodeToString(updatedGuild))
-            val update = Document("\$set", updatedDocument)
-            guilds.updateOne(eq("_id", guildId), update)
-
-            updatedGuild
-        }
-    }
-
-    // Check missing fields and add them
-
-    private fun ensureFields(dataClass: KClass<*>, jsonNode: JsonNode, guildId: String): JsonNode {
-        val updatedJsonNode = (jsonNode as ObjectNode)
-
-        dataClass.memberProperties.forEach { property ->
-            val fieldName = property.name
-
-            if (!updatedJsonNode.has(fieldName)) {
-                logger.info { "Missing field $fieldName on guild $guildId, adding it." }
-                val defaultValue = getDefaultValue(property.returnType.classifier as KClass<*>)
-                updatedJsonNode.putPOJO(fieldName, defaultValue)
-            }
-
-            if (updatedJsonNode.has(fieldName) && updatedJsonNode.get(fieldName).isNull) {
-                logger.info { "Field $fieldName doesn't have a value, adding a value." }
-                val defaultValue = getDefaultValue(property.returnType.classifier as KClass<*>)
-                updatedJsonNode.putPOJO(fieldName, defaultValue)
-            }
-        }
-
-        return updatedJsonNode
-    }
-
-    private fun getDefaultValue(type: KClass<*>): Any? {
-        return when (type) {
-            String::class -> "owo what's this?"
-            Int::class -> 0
-            Boolean::class -> false
-            Double::class -> 0.0
-            Long::class -> 0L
-            List::class -> emptyList<Any>()
-            AntiRaidModule::class -> AntiRaidModule()
-            AutoRoleModule::class -> AutoRoleModule()
-            WelcomerModule::class -> WelcomerModule()
-            InviteBlockerSettings::class -> InviteBlockerSettings()
-            GuildSettings::class -> GuildSettings()
-            MusicSettings::class -> MusicSettings()
-            ServerLogModule::class -> ServerLogModule()
-            ModerationUtils::class -> ModerationUtils()
-            else -> null
+            client.json.decodeFromString<Guild>(documentToJSON.toString())
         }
     }
 }

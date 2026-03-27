@@ -1,24 +1,27 @@
 package net.cakeyfox.foxy.database.data.guild
 
+import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlinx.serialization.Serializable
 import net.cakeyfox.foxy.database.common.data.MongoDateSerializer
-
 @Serializable
 data class Guild(
     val _id: String,
-    val guildAddedAt: Long,
-    val GuildJoinLeaveModule: WelcomerModule,
-    val AutoRoleModule: AutoRoleModule? = null,
-    val antiRaidModule: AntiRaidModule? = null,
-    val guildSettings: GuildSettings,
-    val inviteBlockerSettings: InviteBlockerSettings? = null,
-    val moderationUtils: ModerationUtils? = null,
+    val guildAddedAt: Long? = Clock.System.now().toEpochMilliseconds(),
+    @Serializable(with = MongoDateSerializer::class)
+    val leftAt: Instant? = null,
+    val GuildJoinLeaveModule: WelcomerModule = WelcomerModule(),
+    val AutoRoleModule: AutoRoleModule = AutoRoleModule(),
+    val antiRaidModule: AntiRaidModule = AntiRaidModule(),
+    val guildSettings: GuildSettings = GuildSettings(),
+    val inviteBlockerSettings: InviteBlockerSettings = InviteBlockerSettings(),
+    val moderationUtils: ModerationUtils = ModerationUtils(),
     val followedYouTubeChannels: List<YouTubeChannel> = emptyList(),
-    val musicSettings: MusicSettings? = null,
+    val musicSettings: MusicSettings = MusicSettings(),
     val dashboardLogs: List<DashboardLog> = emptyList(),
-    val tempBans: List<TempBan>? = emptyList(),
-    val serverLogModule: ServerLogModule? = null
+    val tempBans: List<TempBan> = emptyList(),
+    val serverLogModule: ServerLogModule = ServerLogModule(),
+    val registeredCases: Long? = 0
 )
 
 @Serializable
@@ -26,6 +29,9 @@ data class InviteBlockerSettings(
     val isEnabled: Boolean = false,
     val channelsThatCanSendInvites: List<String>? = emptyList(),
     val rolesThatCanSendInvites: List<String>? = emptyList(),
+    val blockDisboardInvites: Boolean = false,
+    val allowInvitesFromThisServer: Boolean = false,
+    val blockDiscordBotInvites: Boolean = false,
     val message: String? = ""
 )
 

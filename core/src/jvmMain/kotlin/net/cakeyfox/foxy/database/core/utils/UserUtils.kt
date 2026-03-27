@@ -311,7 +311,6 @@ class UserUtils(private val client: DatabaseClient) {
                 userBirthday = UserBirthday(),
                 userPremium = UserPremium(),
                 userSettings = UserSettings(language = "pt-br"),
-                petInfo = PetInfo(),
                 userTransactions = emptyList(),
                 roulette = Roulette(),
             )

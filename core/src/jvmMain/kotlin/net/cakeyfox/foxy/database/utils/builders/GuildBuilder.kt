@@ -16,6 +16,7 @@ class GuildBuilder {
     val moderationUtils = ModerationUtilsBuilder()
     val inviteBlockerSettings = InviteBlockerSettingsBuilder()
     var guildAddedAt: Long? = null
+    var leftAt: Instant? = null
     val followedYouTubeChannels = mutableListOf<YouTubeChannelBuilder>()
     val dashboardLogs = mutableListOf<DashboardLogBuilder>()
     val tempBans = mutableListOf<TempBanBuilder>()
@@ -24,6 +25,7 @@ class GuildBuilder {
         val setOps = mutableMapOf<String, Any?>()
 
         guildAddedAt?.let { setOps["guildAddedAt"] = it }
+        leftAt?.let { setOps["leftAt"] = it.toBsonDate() }
 
         setOps.putAll(serverLogModule.toDocument("serverLogModule"))
         setOps.putAll(guildJoinLeaveModule.toDocument("GuildJoinLeaveModule"))
