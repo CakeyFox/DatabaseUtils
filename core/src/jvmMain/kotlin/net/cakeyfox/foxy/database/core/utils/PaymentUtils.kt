@@ -62,6 +62,19 @@ class PaymentUtils(
         }
     }
 
+    suspend fun getKeyByUserId(userId: String): Key? {
+        return client.withRetry {
+            val keys = client.database.getCollection<Key>("keys")
+            val existingDocument = keys.find(
+                and(
+                    eq("ownedBy", userId)
+                )
+            ).firstOrNull()
+
+            existingDocument
+        }
+    }
+
     suspend fun registerKey(userId: String): Key {
         val key = Key(
             key = UUID.randomUUID()
