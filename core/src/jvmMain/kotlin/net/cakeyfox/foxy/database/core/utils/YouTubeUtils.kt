@@ -66,14 +66,19 @@ class YouTubeUtils(
         message: String?
     ) {
         client.withRetry {
-            client.guilds.updateOne(
+            client.guilds.findOneAndUpdate(
                 and(
                     eq("_id", guildId),
                     eq("followedYouTubeChannels.channelId", youtubeChannelId)
                 ),
                 combine(
-                    set("followedYouTubeChannels.$.notificationMessage", message),
-                    if (discordChannelId != null) set("followedYouTubeChannels.$.channelToSend", discordChannelId) else null,
+                    buildList {
+                        add(set("followedYouTubeChannels.$.notificationMessage", message))
+
+                        if (discordChannelId != null) {
+                            add(set("followedYouTubeChannels.$.channelToSend", discordChannelId))
+                        }
+                    }
                 )
             )
         }
