@@ -20,7 +20,7 @@ data class FoxyUser(
     val userProfile: UserProfile = UserProfile(),
     val userPremium: UserPremium = UserPremium(),
     val userSettings: UserSettings = UserSettings(),
-    val userTransactions: List<Transaction>? = emptyList(),
+    val userTransactions: List<Transaction> = emptyList(),
     val roulette: Roulette = Roulette(),
     @Serializable(with = MongoDateSerializer::class)
     val lastVote: Instant? = null,
@@ -74,7 +74,7 @@ data class UserProfile(
     val repCount: Int = 0,
     @Serializable(with = MongoDateSerializer::class)
     val lastRep: Instant? = null,
-    val reputations: List<Reputation>? = emptyList(),
+    val reputations: List<Reputation> = emptyList(),
     val layout: String = "default",
     val layoutList: List<String> = listOf("default"),
     val aboutme: String? = null,

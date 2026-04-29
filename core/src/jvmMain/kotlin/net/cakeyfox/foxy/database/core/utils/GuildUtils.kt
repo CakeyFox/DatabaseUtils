@@ -1,12 +1,7 @@
 package net.cakeyfox.foxy.database.core.utils
 
 import net.cakeyfox.foxy.database.utils.builders.GuildBuilder
-import com.fasterxml.jackson.databind.DeserializationFeature
-import com.fasterxml.jackson.databind.ObjectMapper
 import org.bson.Document
-import kotlin.reflect.KClass
-import com.fasterxml.jackson.databind.JsonNode
-import com.fasterxml.jackson.databind.node.ObjectNode
 import kotlinx.coroutines.flow.firstOrNull
 import mu.KotlinLogging
 import com.mongodb.client.model.Filters.eq
@@ -14,9 +9,9 @@ import com.mongodb.client.model.FindOneAndUpdateOptions
 import com.mongodb.client.model.ReturnDocument
 import com.mongodb.client.model.Updates.pull
 import com.mongodb.client.model.Updates.push
+import com.mongodb.client.model.Updates.set
 import kotlinx.coroutines.flow.toList
 import kotlinx.datetime.Clock
-import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.Instant
 import kotlinx.datetime.toJavaInstant
 import net.cakeyfox.foxy.database.common.data.guild.Case
@@ -28,7 +23,6 @@ import net.cakeyfox.foxy.database.data.guild.DashboardLog
 import net.cakeyfox.foxy.database.data.guild.FoxyverseGuild
 import net.cakeyfox.foxy.database.data.guild.Guild
 import net.cakeyfox.foxy.database.data.guild.GuildSettings
-import net.cakeyfox.foxy.database.data.guild.InviteBlockerSettings
 import net.cakeyfox.foxy.database.data.guild.Key
 import net.cakeyfox.foxy.database.data.guild.ModerationUtils
 import net.cakeyfox.foxy.database.data.guild.MusicSettings
@@ -36,8 +30,6 @@ import net.cakeyfox.foxy.database.data.guild.ServerLogModule
 import net.cakeyfox.foxy.database.data.guild.TempBan
 import net.cakeyfox.foxy.database.data.guild.WelcomerModule
 import java.util.Date
-import java.util.concurrent.TimeUnit
-import kotlin.reflect.full.memberProperties
 import kotlin.time.Duration.Companion.days
 
 class GuildUtils(
@@ -80,6 +72,31 @@ class GuildUtils(
                         date = Clock.System.now().toEpochMilliseconds()
                     )
                 )
+            )
+        }
+    }
+
+    suspend fun removeGuildKey(guildId: String) {
+        return client.withRetry {
+            val currentGuildKey = client.guild.getKeyByGuildId(guildId) ?: return@withRetry
+
+            val query = Document("key", currentGuildKey.key)
+
+            client.premiumKeys.findOneAndUpdate(
+                query,
+                set("usedBy", null)
+            )
+        }
+    }
+
+    suspend fun addGuildKey(userId: String, guildId: String) {
+        return client.withRetry {
+            val userKey = client.payment.getKeyByUserId(userId) ?: return@withRetry
+            val query = Document("key", userKey.key)
+
+            client.premiumKeys.findOneAndUpdate(
+                query,
+                set("usedBy", guildId)
             )
         }
     }

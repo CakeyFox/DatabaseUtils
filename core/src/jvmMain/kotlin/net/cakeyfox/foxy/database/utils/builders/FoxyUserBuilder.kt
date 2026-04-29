@@ -126,6 +126,7 @@ class UserPremiumBuilder {
 class UserCakesBuilder {
     private var balanceIncrement: Double = 0.0
     var balance: Double? = null
+    var lastDaily: Instant? = null
     var lastInactivityTax: Instant? = null
     var notifiedForDaily: Boolean? = null
     var warnedAboutInactivityTax: Boolean? = null
@@ -144,6 +145,7 @@ class UserCakesBuilder {
 
         if (balanceIncrement != 0.0) incMap["$prefix.balance"] = balanceIncrement
         lastInactivityTax?.let { setMap["$prefix.lastInactivityTax"] = it.toBsonDate() }
+        lastDaily?.let { setMap["$prefix.lastDaily"] = it.toBsonDate() }
         notifiedForDaily?.let { setMap["$prefix.notifiedForDaily"] = it }
         warnedAboutInactivityTax?.let { setMap["$prefix.warnedAboutInactivityTax"] = it }
 
