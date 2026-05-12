@@ -1,11 +1,14 @@
 package net.cakeyfox.foxy.database.core.utils
 
+import com.mongodb.client.model.Filters.eq
 import com.mongodb.client.model.UpdateOptions
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.toList
 import kotlinx.datetime.Clock
 import kotlinx.datetime.toJavaInstant
 import mu.KotlinLogging
+import net.cakeyfox.foxy.database.common.data.utils.DailyStoreContent
 import net.cakeyfox.foxy.database.data.profile.Background
 import net.cakeyfox.foxy.database.data.profile.Badge
 import net.cakeyfox.foxy.database.data.profile.Decoration
@@ -21,6 +24,37 @@ class ProfileUtils(
     private val client: DatabaseClient
 ) {
     private val logger = KotlinLogging.logger(this::class.jvmName)
+
+    suspend fun getStoreContent(): DailyStoreContent {
+        val backgrounds = getActiveBackgrounds()
+        val layouts = getActiveLayouts()
+        val decorations = getActiveDecorations()
+
+        val collection = client.database.getCollection<DailyStore>("dailystores")
+
+        val store = collection.find(eq("id", "store")).first()
+
+        val backgroundIds = store.itens
+            .filter { it.type == "background" }
+            .map { it.id }
+            .toSet()
+
+        val layoutIds = store.itens
+            .filter { it.type == "layout" }
+            .map { it.id }
+            .toSet()
+
+        val decorationIds = store.itens
+            .filter { it.type == "decoration" }
+            .map { it.id }
+            .toSet()
+
+        return DailyStoreContent(
+            backgrounds = backgrounds.filter { it.id in backgroundIds },
+            layouts = layouts.filter { it.id in layoutIds },
+            decorations = decorations.filter { it.id in decorationIds }
+        )
+    }
 
     suspend fun updateStore() {
         val backgrounds = getActiveBackgrounds()
