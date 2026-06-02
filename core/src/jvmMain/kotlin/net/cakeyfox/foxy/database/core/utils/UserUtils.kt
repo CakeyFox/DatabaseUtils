@@ -10,12 +10,17 @@ import com.mongodb.client.model.Filters.exists
 import com.mongodb.client.model.Filters.lt
 import com.mongodb.client.model.Filters.or
 import com.mongodb.client.model.FindOneAndUpdateOptions
+import com.mongodb.client.model.Projections
 import com.mongodb.client.model.ReturnDocument
 import com.mongodb.client.model.UpdateOptions
 import kotlinx.coroutines.flow.toList
 import kotlinx.datetime.Clock
 import kotlinx.datetime.toJavaInstant
 import kotlinx.datetime.toKotlinInstant
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.decodeFromJsonElement
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.serializer
 import net.cakeyfox.foxy.database.common.data.marry.CoupleStoreItem
 import net.cakeyfox.foxy.database.common.data.marry.Marry
 import net.cakeyfox.foxy.database.core.DatabaseClient
@@ -37,8 +42,9 @@ import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit
 import java.util.Date
 import java.util.UUID
+import kotlin.reflect.KClass
 
-class UserUtils(private val client: DatabaseClient) {
+class UserUtils(val client: DatabaseClient) {
     suspend fun getUserByPremiumKey(key: String): FoxyUser? {
         return client.withRetry {
             val collection = client.database.getCollection<Document>("keys")
@@ -55,16 +61,45 @@ class UserUtils(private val client: DatabaseClient) {
         }
     }
 
-    suspend fun getFoxyProfile(userId: String): FoxyUser {
+    suspend inline fun <reified T> getFoxyProfile(
+        userId: String,
+        vararg fields: String
+    ): T {
         return client.withRetry {
             val collection = client.database.getCollection<Document>("users")
 
-            val existingUserDocument = collection.find(eq("_id", userId)).firstOrNull()
-                ?: return@withRetry createUser(userId)
+            val projection = if (fields.isNotEmpty())
+                Projections.fields(fields.map { Projections.include(it) })
+            else null
 
-            val documentToJSON = existingUserDocument.toJson()
-            client.json.decodeFromString<FoxyUser>(documentToJSON)
+            val document = collection
+                .find(eq("_id", userId))
+                .apply { projection?.let { projection(it) } }
+                .firstOrNull()
+                ?: return@withRetry createUser(userId) as T
+
+            val json = document.toJson()
+
+            if (fields.size == 1 && isPrimitive(T::class)) {
+                val element = fields[0].split(".").fold(
+                    client.json.parseToJsonElement(json)
+                ) { acc, key ->
+                    acc.jsonObject[key]
+                        ?: throw NoSuchFieldException("Field '$key' not found in path '${fields[0]}'")
+                }
+
+                return@withRetry client.json.decodeFromJsonElement(serializer<T>(), element)
+            }
+
+            client.json.decodeFromString<T>(json)
         }
+    }
+
+    fun isPrimitive(klass: KClass<*>): Boolean {
+        return klass in setOf(
+            Int::class, Long::class, Double::class, Float::class,
+            Boolean::class, String::class
+        )
     }
 
     suspend fun getExpiredDailies(): List<FoxyUser> {
@@ -119,13 +154,15 @@ class UserUtils(private val client: DatabaseClient) {
 
 
     suspend fun addVote(userId: String) {
-        val userData = getFoxyProfile(userId)
+        val voteCount = getFoxyProfile<Int>(userId, "voteCount")
+        val balance = getFoxyProfile<Double>(userId, "userCakes", "balance")
+
         client.withRetry {
             updateUser(userId) {
                 lastVote = Clock.System.now()
-                voteCount = (userData.voteCount ?: 0) + 1
+                this.voteCount = voteCount + 1
                 notifiedForVote = false
-                userCakes.balance = userData.userCakes.balance + 1500
+                userCakes.balance = balance + 1500
             }
         }
     }
@@ -299,7 +336,7 @@ class UserUtils(private val client: DatabaseClient) {
             ).firstOrNull()
         }
 
-    private suspend fun createUser(userId: String): FoxyUser {
+    suspend fun createUser(userId: String): FoxyUser {
         return client.withRetry {
             val collection = client.database.getCollection<Document>("users")
 
