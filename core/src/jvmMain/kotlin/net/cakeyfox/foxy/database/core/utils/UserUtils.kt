@@ -154,7 +154,7 @@ class UserUtils(val client: DatabaseClient) {
 
 
     suspend fun addVote(userId: String) {
-        val voteCount = getFoxyProfile<Int>(userId, "voteCount")
+        val voteCount = getFoxyProfile<Int?>(userId, "voteCount") ?: 0
         val balance = getFoxyProfile<Double>(userId, "userCakes.balance")
 
         client.withRetry {
