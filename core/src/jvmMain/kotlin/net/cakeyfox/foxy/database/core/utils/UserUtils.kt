@@ -80,12 +80,12 @@ class UserUtils(val client: DatabaseClient) {
 
             val json = document.toJson()
 
-            if (fields.size == 1 && isPrimitive(T::class)) {
-                val element = fields[0].split(".").fold(
+            if (fields.isNotEmpty() && isPrimitive(T::class)) {
+                val element = fields.fold(
                     client.json.parseToJsonElement(json)
                 ) { acc, key ->
                     acc.jsonObject[key]
-                        ?: throw NoSuchFieldException("Field '$key' not found in path '${fields[0]}'")
+                        ?: throw NoSuchFieldException("Field '$key' not found")
                 }
 
                 return@withRetry client.json.decodeFromJsonElement(serializer<T>(), element)
@@ -155,7 +155,7 @@ class UserUtils(val client: DatabaseClient) {
 
     suspend fun addVote(userId: String) {
         val voteCount = getFoxyProfile<Int>(userId, "voteCount")
-        val balance = getFoxyProfile<Double>(userId, "userCakes", "balance")
+        val balance = getFoxyProfile<Double>(userId, "userCakes.balance")
 
         client.withRetry {
             updateUser(userId) {
