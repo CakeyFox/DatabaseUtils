@@ -25,7 +25,7 @@ data class FoxyUser(
     @Serializable(with = MongoDateSerializer::class)
     val lastVote: Instant? = null,
     val notifiedForVote: Boolean? = false,
-    val voteCount: Int = 0,
+    val voteCount: Int? = null,
     val notifications: Notifications = Notifications()
 )
 
