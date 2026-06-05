@@ -80,12 +80,12 @@ class UserUtils(val client: DatabaseClient) {
 
             val json = document.toJson()
 
-            if (fields.isNotEmpty() && isPrimitive(T::class)) {
-                val element = fields.fold(
+            if (fields.size == 1 && isPrimitive(T::class)) {
+                val element = fields[0].split(".").fold(
                     client.json.parseToJsonElement(json)
                 ) { acc, key ->
                     acc.jsonObject[key]
-                        ?: throw NoSuchFieldException("Field '$key' not found")
+                        ?: throw NoSuchFieldException("Field '$key' not found in path '${fields[0]}'")
                 }
 
                 return@withRetry client.json.decodeFromJsonElement(serializer<T>(), element)
