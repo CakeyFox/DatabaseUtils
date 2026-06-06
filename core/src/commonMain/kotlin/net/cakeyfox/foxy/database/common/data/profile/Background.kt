@@ -10,5 +10,6 @@ data class Background(
     val filename: String,
     val description: String? = null,
     val author: String? = null,
-    val inactive: Boolean = false
+    val inactive: Boolean = false,
+    val rarity: String = "COMMON"
 )

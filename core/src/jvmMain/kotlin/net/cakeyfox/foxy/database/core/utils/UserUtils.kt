@@ -203,10 +203,7 @@ class UserUtils(val client: DatabaseClient) {
     suspend fun getUserRankPosition(userId: String): Int {
         val collection = client.database.getCollection<FoxyUser>("users")
 
-        val currentUser = collection.find(Document("_id", userId)).firstOrNull()
-            ?: return -1
-
-        val userCakes = currentUser.userCakes.balance
+        val userCakes = getFoxyProfile<Double?>(userId, "userCakes.balance") ?: return -1
 
         val countAbove = collection.countDocuments(
             Document("userCakes.balance", Document("\$gt", userCakes))
