@@ -26,6 +26,7 @@ class FoxyUserBuilder {
     fun toDocument(): Document {
         val setMap = mutableMapOf<String, Any?>()
         val incMap = mutableMapOf<String, Any?>()
+        val pushMap = mutableMapOf<String, Any?>()
 
         isBanned?.let { setMap["isBanned"] = it }
         banReason?.let { setMap["banReason"] = it }
@@ -35,30 +36,33 @@ class FoxyUserBuilder {
         notifiedForVote?.let { setMap["notifiedForVote"] = it }
         voteCount?.let { setMap["voteCount"] = it }
 
-        mergeBuilderMaps(userProfile.toDocument("userProfile"), setMap, incMap)
-        mergeBuilderMaps(userPremium.toDocument("userPremium"), setMap, incMap)
-        mergeBuilderMaps(userCakes.toDocument("userCakes"), setMap, incMap)
-        mergeBuilderMaps(marryStatus.toDocument("marryStatus"), setMap, incMap)
-        mergeBuilderMaps(userSettings.toDocument("userSettings"), setMap, incMap)
-        mergeBuilderMaps(userBirthday.toDocument("userBirthday"), setMap, incMap)
-        mergeBuilderMaps(roulette.toDocument("roulette"), setMap, incMap)
-        mergeBuilderMaps(notifications.toDocument("notifications"), setMap, incMap)
+        mergeBuilderMaps(userProfile.toDocument("userProfile"), setMap, incMap, pushMap)
+        mergeBuilderMaps(userPremium.toDocument("userPremium"), setMap, incMap, pushMap)
+        mergeBuilderMaps(userCakes.toDocument("userCakes"), setMap, incMap, pushMap)
+        mergeBuilderMaps(marryStatus.toDocument("marryStatus"), setMap, incMap, pushMap)
+        mergeBuilderMaps(userSettings.toDocument("userSettings"), setMap, incMap, pushMap)
+        mergeBuilderMaps(userBirthday.toDocument("userBirthday"), setMap, incMap, pushMap)
+        mergeBuilderMaps(roulette.toDocument("roulette"), setMap, incMap, pushMap)
+        mergeBuilderMaps(notifications.toDocument("notifications"), setMap, incMap, pushMap)
 
         val doc = Document()
         if (setMap.isNotEmpty()) doc["\$set"] = setMap
         if (incMap.isNotEmpty()) doc["\$inc"] = incMap
+        if (pushMap.isNotEmpty()) doc["\$push"] = pushMap
         return doc
     }
 
     private fun mergeBuilderMaps(
         builderDoc: Document,
         setMap: MutableMap<String, Any?>,
-        incMap: MutableMap<String, Any?>
+        incMap: MutableMap<String, Any?>,
+        pushMap: MutableMap<String, Any?>
     ) {
         builderDoc.forEach { (key, value) ->
             when (key) {
                 "\$set" -> setMap.putAll(value as Map<String, Any?>)
                 "\$inc" -> incMap.putAll(value as Map<String, Any?>)
+                "\$push" -> pushMap.putAll(value as Map<String, Any?>)
                 else -> setMap[key] = value
             }
         }
@@ -87,25 +91,40 @@ class UserProfileBuilder {
     var layout: String? = null
     var aboutme: String? = null
     var disabledBadges: List<String>? = null
-    val backgroundList = mutableListOf<String>()
-    val layoutList = mutableListOf<String>()
+    var backgroundList = mutableListOf<String>()
+    var layoutList = mutableListOf<String>()
+    var decorationList = mutableListOf<String>()
     var decoration: String? = null
     var lastRep: Instant? = null
     var repCount: Int? = null
 
     fun toDocument(prefix: String): Document {
-        val map = mutableMapOf<String, Any?>()
-        background?.let { map["$prefix.background"] = it }
-        layout?.let { map["$prefix.layout"] = it }
-        aboutme?.let { map["$prefix.aboutme"] = it }
-        if (backgroundList.isNotEmpty()) map["$prefix.backgroundList"] = backgroundList
-        if (layoutList.isNotEmpty()) map["$prefix.layoutList"] = layoutList
-        disabledBadges?.let { map["$prefix.disabledBadges"] = it }
-        lastRep?.let { map["$prefix.lastRep"] = it.toBsonDate() }
-        decoration?.let { map["$prefix.decoration"] = it }
-        repCount?.let { map["$prefix.repCount"] = it }
+        val setMap = mutableMapOf<String, Any?>()
+        val pushMap = mutableMapOf<String, Any?>()
 
-        return Document(map)
+        background?.let { setMap["$prefix.background"] = it }
+        layout?.let { setMap["$prefix.layout"] = it }
+        aboutme?.let { setMap["$prefix.aboutme"] = it }
+        disabledBadges?.let { setMap["$prefix.disabledBadges"] = it }
+        lastRep?.let { setMap["$prefix.lastRep"] = it.toBsonDate() }
+        decoration?.let { setMap["$prefix.decoration"] = it }
+        repCount?.let { setMap["$prefix.repCount"] = it }
+
+        if (backgroundList.isNotEmpty()) {
+            pushMap["$prefix.backgroundList"] = Document("\$each", backgroundList)
+        }
+        if (layoutList.isNotEmpty()) {
+            pushMap["$prefix.layoutList"] = Document("\$each", layoutList)
+        }
+        if (decorationList.isNotEmpty()) {
+            pushMap["$prefix.decorationList"] = Document("\$each", decorationList)
+        }
+
+        val update = Document()
+        if (setMap.isNotEmpty()) update["\$set"] = Document(setMap)
+        if (pushMap.isNotEmpty()) update["\$push"] = Document(pushMap)
+
+        return update
     }
 }
 
@@ -142,6 +161,7 @@ class UserCakesBuilder {
     fun toDocument(prefix: String): Document {
         val setMap = mutableMapOf<String, Any?>()
         val incMap = mutableMapOf<String, Any?>()
+        val pushMap = mutableMapOf<String, Any?>()
 
         if (balanceIncrement != 0.0) incMap["$prefix.balance"] = balanceIncrement
         lastInactivityTax?.let { setMap["$prefix.lastInactivityTax"] = it.toBsonDate() }
@@ -152,6 +172,7 @@ class UserCakesBuilder {
         val doc = Document()
         if (setMap.isNotEmpty()) doc["\$set"] = setMap
         if (incMap.isNotEmpty()) doc["\$inc"] = incMap
+        if (pushMap.isNotEmpty()) doc["\$push"] = pushMap
         return doc
     }
 }

@@ -36,6 +36,7 @@ import net.cakeyfox.foxy.database.data.user.UserPremium
 import net.cakeyfox.foxy.database.data.user.UserProfile
 import net.cakeyfox.foxy.database.data.user.UserSettings
 import net.cakeyfox.foxy.database.utils.builders.MarryBuilder
+import org.bson.conversions.Bson
 import java.time.Instant
 import java.time.ZoneId
 import java.time.ZonedDateTime
