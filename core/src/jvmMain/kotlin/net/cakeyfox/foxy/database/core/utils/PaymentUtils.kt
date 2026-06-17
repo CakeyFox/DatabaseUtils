@@ -23,6 +23,33 @@ class PaymentUtils(
         )
     }
 
+    suspend fun getOrCreateCheckout(userId: String, itemId: String) : Checkout {
+        return client.withRetry {
+            val checkouts = client.database.getCollection<Checkout>("checkoutlists")
+
+            val existingDocument = checkouts.find(
+                and(
+                    eq("userId", userId),
+                    eq("isApproved", false)
+                )
+            ).firstOrNull()
+            
+            if (existingDocument != null) {
+                existingDocument
+            } else {
+                val newCheckout = Checkout(
+                    userId = userId,
+                    isApproved = false,
+                    checkoutId = UUID.randomUUID().toString(),
+                    itemId = itemId,
+                )
+
+                checkouts.insertOne(newCheckout)
+                newCheckout
+            }
+        }
+    }
+    
     suspend fun getCheckout(checkoutId: String): Checkout? {
         return client.withRetry {
             val checkouts = client.database.getCollection<Checkout>("checkoutlists")
