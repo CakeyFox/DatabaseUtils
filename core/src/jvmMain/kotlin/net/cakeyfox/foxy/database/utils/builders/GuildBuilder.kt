@@ -126,13 +126,33 @@ class AutoRoleModuleBuilder {
 class AntiRaidModuleBuilder {
     var handleMultipleMessages: Boolean? = null
     var handleMultipleJoins: Boolean? = null
-    var messagesThreshold: Int? = null
+    var handleMultipleChars: Boolean? = null
+
+    var actionForMassJoin: String? = "NOTHING"
+    var actionForMassMessage: String? = "TIMEOUT"
+    var actionForMassChars: String? = "WARN"
+
+    var timeoutDuration: Long = 10000
+    var repeatedCharsThreshold: Long = 10
+    var warnsThreshold: Long = 3
+    var newUsersThreshold: Long = 5
+    var messagesThreshold: Long = 8
+
+    var alertChannel: String? = null
 
     fun toDocument(prefix: String): Map<String, Any?> {
         val map = mutableMapOf<String, Any?>()
         handleMultipleMessages?.let { map["$prefix.handleMultipleMessages"] = it }
+        handleMultipleChars?.let { map["$prefix.handleMultipleChars"] = it }
         handleMultipleJoins?.let { map["$prefix.handleMultipleJoins"] = it }
+        actionForMassJoin?.let { map["$prefix.actionForMassJoin"] = it }
+        actionForMassMessage?.let { map["$prefix.actionForMassMessage"] = it }
+        actionForMassChars?.let { map["$prefix.actionForMassChars"] = it }
         messagesThreshold?.let { map["$prefix.messagesThreshold"] = it }
+        repeatedCharsThreshold?.let { map["$prefix.repeatedCharsThreshold"] = it }
+        warnsThreshold?.let { map["$prefix.warnsThreshold"] = it }
+        newUsersThreshold?.let { map["$prefix.newUsersThreshold"] = it }
+        alertChannel?.let { map["$prefix.alertChannel"] = it }
         return map
     }
 }
