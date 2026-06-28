@@ -19,10 +19,17 @@ data class Guild(
     val moderationUtils: ModerationUtils = ModerationUtils(),
     val followedYouTubeChannels: List<YouTubeChannel> = emptyList(),
     val musicSettings: MusicSettings = MusicSettings(),
+    val reportSettings: ReportSettings = ReportSettings(),
     val dashboardLogs: List<DashboardLog> = emptyList(),
     val tempBans: List<TempBan> = emptyList(),
     val serverLogModule: ServerLogModule = ServerLogModule(),
     val registeredCases: Long? = 0
+)
+
+@Serializable
+data class ReportSettings(
+    val isEnabled: Boolean = false,
+    val channelToSendReports: String = ""
 )
 
 @Serializable

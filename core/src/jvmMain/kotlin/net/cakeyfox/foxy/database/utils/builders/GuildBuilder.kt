@@ -20,6 +20,7 @@ class GuildBuilder {
     val followedYouTubeChannels = mutableListOf<YouTubeChannelBuilder>()
     val dashboardLogs = mutableListOf<DashboardLogBuilder>()
     val tempBans = mutableListOf<TempBanBuilder>()
+    val reportSettings = ReportSettingsBuilder()
 
     fun toDocument(): Document {
         val setOps = mutableMapOf<String, Any?>()
@@ -35,6 +36,7 @@ class GuildBuilder {
         setOps.putAll(musicSettings.toDocument("musicSettings"))
         setOps.putAll(moderationUtils.toDocument("moderationUtils"))
         setOps.putAll(inviteBlockerSettings.toDocument("inviteBlockerSettings"))
+        setOps.putAll(reportSettings.toDocument("reportSettings"))
 
         if (followedYouTubeChannels.isNotEmpty()) {
             setOps["followedYouTubeChannels"] = followedYouTubeChannels.map { it.toMap() }
@@ -49,6 +51,19 @@ class GuildBuilder {
         }
 
         return Document("\$set", setOps)
+    }
+}
+
+class ReportSettingsBuilder {
+    var isEnabled: Boolean? = false
+    var channelToSendReports: String? = ""
+
+    fun toDocument(prefix: String): Document {
+        val map = mutableMapOf<String, Any?>()
+        isEnabled?.let { map["$prefix.isEnabled"] = it }
+        channelToSendReports?.let { map["$prefix.channelToSendReports"] = it }
+
+        return Document(map)
     }
 }
 

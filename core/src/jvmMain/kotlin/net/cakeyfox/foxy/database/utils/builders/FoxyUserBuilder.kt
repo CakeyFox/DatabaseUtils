@@ -45,6 +45,7 @@ class FoxyUserBuilder {
         mergeBuilderMaps(roulette.toDocument("roulette"), setMap, incMap, pushMap)
         mergeBuilderMaps(notifications.toDocument("notifications"), setMap, incMap, pushMap)
 
+
         val doc = Document()
         if (setMap.isNotEmpty()) doc["\$set"] = setMap
         if (incMap.isNotEmpty()) doc["\$inc"] = incMap
