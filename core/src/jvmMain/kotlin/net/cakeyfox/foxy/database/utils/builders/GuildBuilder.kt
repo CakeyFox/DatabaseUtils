@@ -55,14 +55,13 @@ class GuildBuilder {
 }
 
 class ReportSettingsBuilder {
-    var isEnabled: Boolean? = false
-    var channelToSendReports: String? = ""
+    var isEnabled: Boolean? = null
+    var channelToSendReports: String? = null
 
     fun toDocument(prefix: String): Document {
         val map = mutableMapOf<String, Any?>()
         isEnabled?.let { map["$prefix.isEnabled"] = it }
         channelToSendReports?.let { map["$prefix.channelToSendReports"] = it }
-
         return Document(map)
     }
 }
@@ -75,7 +74,7 @@ class ServerLogModule {
     var sendMessageUpdateLogsToChannel: String? = null
     var sendMessageDeleteLogsToChannel: String? = null
     var sendVoiceLogsToChannel: String? = null
-    var sendExpiredBansLogs: Boolean? = false
+    var sendExpiredBansLogs: Boolean? = null
 
     fun toDocument(prefix: String): Map<String, Any?> {
         val map = mutableMapOf<String, Any?>()
@@ -97,7 +96,6 @@ class ModerationUtilsBuilder {
     fun toDocument(prefix: String): Map<String, Any?> {
         val map = mutableMapOf<String, Any?>()
         customPunishmentMessage?.let { map["$prefix.customPunishmentMessage"] = it }
-
         return map
     }
 }
@@ -107,7 +105,7 @@ class WelcomerModuleBuilder {
     var joinMessage: String? = null
     var leaveMessage: String? = null
     var alertWhenUserLeaves: Boolean? = null
-    var sendDmWelcomeMessage: Boolean? = false
+    var sendDmWelcomeMessage: Boolean? = null
     var dmWelcomeMessage: String? = null
     var leaveChannel: String? = null
     var joinChannel: String? = null
@@ -128,12 +126,12 @@ class WelcomerModuleBuilder {
 
 class AutoRoleModuleBuilder {
     var isEnabled: Boolean? = null
-    val roles = mutableListOf<String>()
+    var roles: MutableList<String>? = null
 
     fun toDocument(prefix: String): Map<String, Any?> {
         val map = mutableMapOf<String, Any?>()
         isEnabled?.let { map["$prefix.isEnabled"] = it }
-        if (roles.isNotEmpty()) map["$prefix.roles"] = roles
+        roles?.let { map["$prefix.roles"] = it }
         return map
     }
 }
@@ -142,17 +140,15 @@ class AntiRaidModuleBuilder {
     var handleMultipleMessages: Boolean? = null
     var handleMultipleJoins: Boolean? = null
     var handleMultipleChars: Boolean? = null
-
-    var actionForMassJoin: String? = "NOTHING"
-    var actionForMassMessage: String? = "TIMEOUT"
-    var actionForMassChars: String? = "WARN"
-
-    var timeoutDuration: Long = 10000
-    var repeatedCharsThreshold: Long = 10
-    var warnsThreshold: Long = 3
-    var newUsersThreshold: Long = 5
-    var messagesThreshold: Long = 8
-
+    var actionForMassJoin: String? = null
+    var actionForMassMessage: String? = null
+    var actionForMassChars: String? = null
+    var actionForMaxWarns: String? = null
+    var timeoutDuration: Long? = null
+    var repeatedCharsThreshold: Long? = null
+    var warnsThreshold: Long? = null
+    var newUsersThreshold: Long? = null
+    var messagesThreshold: Long? = null
     var alertChannel: String? = null
 
     fun toDocument(prefix: String): Map<String, Any?> {
@@ -168,23 +164,24 @@ class AntiRaidModuleBuilder {
         warnsThreshold?.let { map["$prefix.warnsThreshold"] = it }
         newUsersThreshold?.let { map["$prefix.newUsersThreshold"] = it }
         alertChannel?.let { map["$prefix.alertChannel"] = it }
+        actionForMaxWarns?.let { map["$prefix.actionForMaxWarns"] = it }
+        timeoutDuration?.let { map["$prefix.timeoutDuration"] = it }
         return map
     }
 }
 
 class InviteBlockerSettingsBuilder {
-    var isEnabled: Boolean? = false
-    var channelsThatCanSendInvites = mutableListOf<String>()
-    var rolesThatCanSendInvites = mutableListOf<String>()
-    var message: String? = ""
+    var isEnabled: Boolean? = null
+    var channelsThatCanSendInvites: MutableList<String>? = null
+    var rolesThatCanSendInvites: MutableList<String>? = null
+    var message: String? = null
 
     fun toDocument(prefix: String): Map<String, Any?> {
         val map = mutableMapOf<String, Any?>()
-        this.isEnabled?.let { map["$prefix.isEnabled"] = it }
-        this.message?.let { map["$prefix.message"] = it}
-        map["$prefix.channelsThatCanSendInvites"] = channelsThatCanSendInvites
-        map["$prefix.rolesThatCanSendInvites"] = rolesThatCanSendInvites
-
+        isEnabled?.let { map["$prefix.isEnabled"] = it }
+        message?.let { map["$prefix.message"] = it }
+        channelsThatCanSendInvites?.let { map["$prefix.channelsThatCanSendInvites"] = it }
+        rolesThatCanSendInvites?.let { map["$prefix.rolesThatCanSendInvites"] = it }
         return map
     }
 }
@@ -192,11 +189,11 @@ class InviteBlockerSettingsBuilder {
 class GuildSettingsBuilder {
     var prefix: String? = null
     var language: String? = null
-    val disabledCommands = mutableListOf<String>()
-    var blockedChannels = mutableListOf<String>()
-    var sendMessageIfChannelIsBlocked: Boolean? = false
-    var deleteMessageIfCommandIsExecuted: Boolean? = false
-    var usersWhoCanAccessDashboard = mutableListOf<String>()
+    var disabledCommands: MutableList<String>? = null
+    var blockedChannels: MutableList<String>? = null
+    var sendMessageIfChannelIsBlocked: Boolean? = null
+    var deleteMessageIfCommandIsExecuted: Boolean? = null
+    var usersWhoCanAccessDashboard: MutableList<String>? = null
 
     fun toDocument(prefix: String): Map<String, Any?> {
         val map = mutableMapOf<String, Any?>()
@@ -204,9 +201,9 @@ class GuildSettingsBuilder {
         language?.let { map["$prefix.language"] = it }
         sendMessageIfChannelIsBlocked?.let { map["$prefix.sendMessageIfChannelIsBlocked"] = it }
         deleteMessageIfCommandIsExecuted?.let { map["$prefix.deleteMessageIfCommandIsExecuted"] = it }
-        map["$prefix.blockedChannels"] = blockedChannels
-        map["$prefix.usersWhoCanAccessDashboard"] = usersWhoCanAccessDashboard
-        map["$prefix.disabledCommands"] = disabledCommands
+        blockedChannels?.let { map["$prefix.blockedChannels"] = it }
+        usersWhoCanAccessDashboard?.let { map["$prefix.usersWhoCanAccessDashboard"] = it }
+        disabledCommands?.let { map["$prefix.disabledCommands"] = it }
         return map
     }
 }
@@ -235,7 +232,6 @@ class TempBanBuilder {
         userId?.let { map["userId"] = it }
         reason?.let { map["reason"] = it }
         duration?.let { map["duration"] = it.toBsonDate() }
-
         return map
     }
 }
@@ -243,7 +239,6 @@ class TempBanBuilder {
 class YouTubeChannelBuilder {
     var channelId: String? = null
     var notificationMessage: String? = null
-
     val notifiedVideos = mutableListOf<YouTubeChannel.Video>()
 
     fun toMap(): Map<String, Any?> {
