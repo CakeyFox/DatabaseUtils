@@ -22,6 +22,9 @@ class FoxyUserBuilder {
     var lastVote: Instant? = null
     var notifiedForVote: Boolean? = null
     var voteCount: Int? = null
+    var steamUserId: String? = null
+    var robloxUserId: String? = null
+    var riotUserId: String? = null
 
     fun toDocument(): Document {
         val setMap = mutableMapOf<String, Any?>()
@@ -35,6 +38,9 @@ class FoxyUserBuilder {
         lastVote?.let { setMap["lastVote"] = it.toBsonDate() }
         notifiedForVote?.let { setMap["notifiedForVote"] = it }
         voteCount?.let { setMap["voteCount"] = it }
+        robloxUserId?.let { setMap["robloxUserId"] = it }
+        steamUserId?.let { setMap["steamUserId"] = it }
+        riotUserId?.let { setMap["riotUserId"] = it }
 
         mergeBuilderMaps(userProfile.toDocument("userProfile"), setMap, incMap, pushMap)
         mergeBuilderMaps(userPremium.toDocument("userPremium"), setMap, incMap, pushMap)

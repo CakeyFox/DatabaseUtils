@@ -26,7 +26,10 @@ data class FoxyUser(
     val lastVote: Instant? = null,
     val notifiedForVote: Boolean? = false,
     val voteCount: Int? = null,
-    val notifications: Notifications = Notifications()
+    val notifications: Notifications = Notifications(),
+    val steamUserId: String? = "",
+    val riotUserId: String? = "",
+    val robloxUserId: String? = "",
 )
 
 @Serializable

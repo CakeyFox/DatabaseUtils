@@ -15,6 +15,7 @@ class GuildBuilder {
     val serverLogModule = ServerLogModule()
     val moderationUtils = ModerationUtilsBuilder()
     val inviteBlockerSettings = InviteBlockerSettingsBuilder()
+    val joinGateSettings = JoinGateSettingsBuilder()
     var guildAddedAt: Long? = null
     var leftAt: Instant? = null
     val followedYouTubeChannels = mutableListOf<YouTubeChannelBuilder>()
@@ -37,6 +38,7 @@ class GuildBuilder {
         setOps.putAll(moderationUtils.toDocument("moderationUtils"))
         setOps.putAll(inviteBlockerSettings.toDocument("inviteBlockerSettings"))
         setOps.putAll(reportSettings.toDocument("reportSettings"))
+        setOps.putAll(joinGateSettings.toDocument("joinGateSettings"))
 
         if (followedYouTubeChannels.isNotEmpty()) {
             setOps["followedYouTubeChannels"] = followedYouTubeChannels.map { it.toMap() }
@@ -51,6 +53,109 @@ class GuildBuilder {
         }
 
         return Document("\$set", setOps)
+    }
+}
+
+class JoinGateSettingsBuilder {
+    var sendDmWhenPunished: Boolean? = null
+    var membersWithoutAvatarHandler: MembersWithoutAvatarHandler? = null
+    var newAccountsHandler: NewAccountsHandler? = null
+    var unverifiedBotsAdditions: UnverifiedBotsAdditions? = null
+    var thirdPartyAuthSettings: ThirdPartyAuthSettings? = null
+
+    fun membersWithoutAvatarHandler(block: MembersWithoutAvatarHandler.() -> Unit) {
+        val handler = membersWithoutAvatarHandler ?: MembersWithoutAvatarHandler().also { membersWithoutAvatarHandler = it }
+        handler.block()
+    }
+
+    fun thirdPartyAuthSettings(block: ThirdPartyAuthSettings.() -> Unit) {
+        val handler = thirdPartyAuthSettings ?: ThirdPartyAuthSettings().also { thirdPartyAuthSettings = it }
+        handler.block()
+    }
+
+    fun newAccountsHandler(block: NewAccountsHandler.() -> Unit) {
+        val handler = newAccountsHandler ?: NewAccountsHandler().also { newAccountsHandler = it }
+        handler.block()
+    }
+
+    fun unverifiedBotsAdditions(block: UnverifiedBotsAdditions.() -> Unit) {
+        val handler = unverifiedBotsAdditions ?: UnverifiedBotsAdditions().also { unverifiedBotsAdditions = it }
+        handler.block()
+    }
+
+    inner class ThirdPartyAuthSettings {
+        var isEnabled: Boolean = false
+        var channelToSendVerification: String = ""
+        var useRobloxAuthentication: Boolean = false
+        var useSteamAuthentication: Boolean = false
+        var useRiotGamesAuthentication: Boolean = false
+        var verifiedRole: String = ""
+
+        fun toDocument(prefix: String): Document {
+            val map = mutableMapOf<String, Any?>()
+            map["$prefix.isEnabled"] = isEnabled
+            map["$prefix.channelToSendVerification"] = channelToSendVerification
+            map["$prefix.useRobloxAuthentication"] = useRobloxAuthentication
+            map["$prefix.useSteamAuthentication"] = useSteamAuthentication
+            map["$prefix.useRiotGamesAuthentication"] = useRiotGamesAuthentication
+            map["$prefix.verifiedRole"] = verifiedRole
+            return Document(map)
+        }
+    }
+
+    inner class MembersWithoutAvatarHandler {
+        var isEnabled: Boolean? = null
+        var channelToSendLogs: String? = null
+        var action: String? = null
+
+        fun toDocument(prefix: String): Document {
+            val map = mutableMapOf<String, Any?>()
+            isEnabled?.let { map["$prefix.isEnabled"] = it }
+            channelToSendLogs?.let { map["$prefix.channelToSendLogs"] = it }
+            action?.let { map["$prefix.action"] = it }
+            return Document(map)
+        }
+    }
+
+    inner class NewAccountsHandler {
+        var isEnabled: Boolean? = null
+        var action: String? = null
+        var channelToSendLogs: String? = null
+        var minimumAccountAge: Long? = null
+
+        fun toDocument(prefix: String): Document {
+            val map = mutableMapOf<String, Any?>()
+            isEnabled?.let { map["$prefix.isEnabled"] = it }
+            action?.let { map["$prefix.action"] = it }
+            channelToSendLogs?.let { map["$prefix.channelToSendLogs"] = it }
+            minimumAccountAge?.let { map["$prefix.minimumAccountAge"] = it }
+            return Document(map)
+        }
+    }
+
+    inner class UnverifiedBotsAdditions {
+        var isEnabled: Boolean? = null
+        var action: String? = null
+        var channelToSendLogs: String? = null
+
+        fun toDocument(prefix: String): Document {
+            val map = mutableMapOf<String, Any?>()
+            isEnabled?.let { map["$prefix.isEnabled"] = it }
+            action?.let { map["$prefix.action"] = it }
+            channelToSendLogs?.let { map["$prefix.channelToSendLogs"] = it }
+            return Document(map)
+        }
+    }
+
+    fun toDocument(prefix: String): Document {
+        val map = mutableMapOf<String, Any?>()
+        sendDmWhenPunished?.let { map["$prefix.sendDmWhenPunished"] = it }
+        membersWithoutAvatarHandler?.toDocument("$prefix.membersWithoutAvatarHandler")?.let { map.putAll(it) }
+        newAccountsHandler?.toDocument("$prefix.newAccountsHandler")?.let { map.putAll(it) }
+        unverifiedBotsAdditions?.toDocument("$prefix.unverifiedBotsAdditions")?.let { map.putAll(it) }
+        thirdPartyAuthSettings?.toDocument("$prefix.thirdPartyAuthSettings")?.let { map.putAll(it) }
+
+        return Document(map)
     }
 }
 

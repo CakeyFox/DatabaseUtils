@@ -22,6 +22,7 @@ data class Guild(
     val reportSettings: ReportSettings = ReportSettings(),
     val dashboardLogs: List<DashboardLog> = emptyList(),
     val tempBans: List<TempBan> = emptyList(),
+    val joinGateSettings: JoinGateModule = JoinGateModule(),
     val serverLogModule: ServerLogModule = ServerLogModule(),
     val registeredCases: Long? = 0
 )
@@ -128,6 +129,46 @@ data class AntiRaidModule(
     val whitelistedChannels: List<String> = emptyList(),
     val whitelistedRoles: List<String> = emptyList(),
 )
+
+@Serializable
+data class JoinGateModule(
+    val sendDmWhenPunished: Boolean = false,
+    val membersWithoutAvatarHandler: MembersWithoutAvatarHandler = MembersWithoutAvatarHandler(),
+    val newAccountsHandler: NewAccountsHandler = NewAccountsHandler(),
+    val unverifiedBotsAdditions: UnverifiedBotsAdditions = UnverifiedBotsAdditions(),
+    val thirdPartyAuthSettings: ThirdPartyAuthSettings = ThirdPartyAuthSettings()
+) {
+    @Serializable
+    data class ThirdPartyAuthSettings(
+        val isEnabled: Boolean = false,
+        val channelToSendVerification: String = "",
+        val useRobloxAuthentication: Boolean = false,
+        val useSteamAuthentication: Boolean = false,
+        val useRiotGamesAuthentication: Boolean = false,
+        val verifiedRole: String? = ""
+    )
+
+    @Serializable
+    data class UnverifiedBotsAdditions(
+        val isEnabled: Boolean = false,
+        val action: String = "KICK",
+        val channelToSendLogs: String = "",
+    )
+
+    @Serializable
+    data class NewAccountsHandler(
+        val isEnabled: Boolean = false,
+        val action: String = "KICK",
+        val channelToSendLogs: String = "",
+        val minimumAccountAge: Long = 0,
+    )
+    @Serializable
+    data class MembersWithoutAvatarHandler(
+        val isEnabled: Boolean = false,
+        val action: String = "KICK",
+        val channelToSendLogs: String = "",
+    )
+}
 
 @Serializable
 data class AutoRoleModule(
