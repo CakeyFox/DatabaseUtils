@@ -62,9 +62,15 @@ class JoinGateSettingsBuilder {
     var newAccountsHandler: NewAccountsHandler? = null
     var unverifiedBotsAdditions: UnverifiedBotsAdditions? = null
     var thirdPartyAuthSettings: ThirdPartyAuthSettings? = null
+    var blockMemberWithInviteLink: BlockMemberWithInviteLink? = null
 
     fun membersWithoutAvatarHandler(block: MembersWithoutAvatarHandler.() -> Unit) {
         val handler = membersWithoutAvatarHandler ?: MembersWithoutAvatarHandler().also { membersWithoutAvatarHandler = it }
+        handler.block()
+    }
+
+    fun blockMemberWithInviteLink(block: BlockMemberWithInviteLink.() -> Unit) {
+        val handler = blockMemberWithInviteLink ?: BlockMemberWithInviteLink().also { blockMemberWithInviteLink = it }
         handler.block()
     }
 
@@ -83,6 +89,20 @@ class JoinGateSettingsBuilder {
         handler.block()
     }
 
+    inner class BlockMemberWithInviteLink {
+        var isEnabled: Boolean = false
+        var channelToSendLogs: String = ""
+        var action: String = "KICK"
+    
+        fun toDocument(prefix: String): Document {
+            val map = mutableMapOf<String, Any?>()
+            map["$prefix.isEnabled"] = isEnabled
+            map["$prefix.channelToSendLogs"] = channelToSendLogs
+            map["$prefix.action"] = action
+            return Document(map)
+        }
+    }
+
     inner class ThirdPartyAuthSettings {
         var isEnabled: Boolean = false
         var channelToSendVerification: String = ""
@@ -90,6 +110,10 @@ class JoinGateSettingsBuilder {
         var useSteamAuthentication: Boolean = false
         var useRiotGamesAuthentication: Boolean = false
         var verifiedRole: String = ""
+        var enableSeparatedRoles: Boolean = false
+        var roleForSteam: String = ""
+        var roleForRiot: String = ""
+        var roleForRoblox: String = ""
 
         fun toDocument(prefix: String): Document {
             val map = mutableMapOf<String, Any?>()
@@ -99,6 +123,11 @@ class JoinGateSettingsBuilder {
             map["$prefix.useSteamAuthentication"] = useSteamAuthentication
             map["$prefix.useRiotGamesAuthentication"] = useRiotGamesAuthentication
             map["$prefix.verifiedRole"] = verifiedRole
+            map["$prefix.enableSeparatedRoles"] = enableSeparatedRoles
+            map["$prefix.roleForSteam"] = roleForSteam
+            map["$prefix.roleForRiot"] = roleForRiot
+            map["$prefix.roleForRoblox"] = roleForRoblox
+
             return Document(map)
         }
     }
@@ -154,6 +183,7 @@ class JoinGateSettingsBuilder {
         newAccountsHandler?.toDocument("$prefix.newAccountsHandler")?.let { map.putAll(it) }
         unverifiedBotsAdditions?.toDocument("$prefix.unverifiedBotsAdditions")?.let { map.putAll(it) }
         thirdPartyAuthSettings?.toDocument("$prefix.thirdPartyAuthSettings")?.let { map.putAll(it) }
+        blockMemberWithInviteLink?.toDocument("$prefix.blockMemberWithInviteLink")?.let { map.putAll(it) }
 
         return Document(map)
     }
@@ -299,6 +329,7 @@ class GuildSettingsBuilder {
     var sendMessageIfChannelIsBlocked: Boolean? = null
     var deleteMessageIfCommandIsExecuted: Boolean? = null
     var usersWhoCanAccessDashboard: MutableList<String>? = null
+    var useLegacyCommands: Boolean? = null
 
     fun toDocument(prefix: String): Map<String, Any?> {
         val map = mutableMapOf<String, Any?>()
@@ -309,6 +340,7 @@ class GuildSettingsBuilder {
         blockedChannels?.let { map["$prefix.blockedChannels"] = it }
         usersWhoCanAccessDashboard?.let { map["$prefix.usersWhoCanAccessDashboard"] = it }
         disabledCommands?.let { map["$prefix.disabledCommands"] = it }
+        useLegacyCommands?.let { map["$prefix.useLegacyCommands"] = it}
         return map
     }
 }

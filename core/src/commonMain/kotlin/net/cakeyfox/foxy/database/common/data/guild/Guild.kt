@@ -136,8 +136,16 @@ data class JoinGateModule(
     val membersWithoutAvatarHandler: MembersWithoutAvatarHandler = MembersWithoutAvatarHandler(),
     val newAccountsHandler: NewAccountsHandler = NewAccountsHandler(),
     val unverifiedBotsAdditions: UnverifiedBotsAdditions = UnverifiedBotsAdditions(),
-    val thirdPartyAuthSettings: ThirdPartyAuthSettings = ThirdPartyAuthSettings()
+    val thirdPartyAuthSettings: ThirdPartyAuthSettings = ThirdPartyAuthSettings(),
+    val blockMemberWithInviteLink: BlockMemberWithInviteLink = BlockMemberWithInviteLink()
 ) {
+    @Serializable
+    data class BlockMemberWithInviteLink(
+        val isEnabled: Boolean = false,
+        val action: String = "KICK",
+        val channelToSendLogs: String = ""
+    )
+
     @Serializable
     data class ThirdPartyAuthSettings(
         val isEnabled: Boolean = false,
@@ -145,6 +153,10 @@ data class JoinGateModule(
         val useRobloxAuthentication: Boolean = false,
         val useSteamAuthentication: Boolean = false,
         val useRiotGamesAuthentication: Boolean = false,
+        val enableSeparatedRoles: Boolean = false,
+        val roleForSteam: String = "",
+        val roleForRiot: String = "",
+        val roleForRoblox: String = "",
         val verifiedRole: String? = ""
     )
 
@@ -185,6 +197,7 @@ data class GuildSettings(
     val sendMessageIfChannelIsBlocked: Boolean = false,
     val deleteMessageIfCommandIsExecuted: Boolean = false,
     val usersWhoCanAccessDashboard: List<String> = emptyList(),
+    val useLegacyCommands: Boolean = true
 )
 
 @Serializable
