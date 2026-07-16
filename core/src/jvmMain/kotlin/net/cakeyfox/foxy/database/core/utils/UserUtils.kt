@@ -62,39 +62,38 @@ class UserUtils(val client: DatabaseClient) {
         }
     }
 
-    suspend inline fun <reified T> getFoxyProfile(
-        userId: String,
-        vararg fields: String
-    ): T {
-        return client.withRetry {
-            val collection = client.database.getCollection<Document>("users")
+suspend inline fun <reified T> getFoxyProfile(
+    userId: String,
+    vararg fields: String
+): T {
+    return client.withRetry {
+        val collection = client.database.getCollection<Document>("users")
 
-            val projection = if (fields.isNotEmpty())
-                Projections.fields(fields.map { Projections.include(it) })
-            else null
+        val projection = if (fields.isNotEmpty())
+            Projections.fields(fields.map { Projections.include(it) })
+        else null
 
-            val document = collection
-                .find(eq("_id", userId))
-                .apply { projection?.let { projection(it) } }
-                .firstOrNull()
-                ?: return@withRetry createUser(userId) as T
+        val document = collection
+            .find(eq("_id", userId))
+            .apply { projection?.let { projection(it) } }
+            .firstOrNull()
 
-            val json = document.toJson()
+        val json = document?.toJson() ?: client.json.encodeToString(createUser(userId))
 
-            if (fields.size == 1 && isPrimitive(T::class)) {
-                val element = fields[0].split(".").fold(
-                    client.json.parseToJsonElement(json)
-                ) { acc, key ->
-                    acc.jsonObject[key]
-                        ?: throw NoSuchFieldException("Field '$key' not found in path '${fields[0]}'")
-                }
-
-                return@withRetry client.json.decodeFromJsonElement(serializer<T>(), element)
+        if (fields.size == 1 && isPrimitive(T::class)) {
+            val element = fields[0].split(".").fold(
+                client.json.parseToJsonElement(json)
+            ) { acc, key ->
+                acc.jsonObject[key]
+                    ?: throw NoSuchFieldException("Field '$key' not found in path '${fields[0]}'")
             }
 
-            client.json.decodeFromString<T>(json)
+            return@withRetry client.json.decodeFromJsonElement(serializer<T>(), element)
         }
+
+        client.json.decodeFromString<T>(json)
     }
+}
 
     fun isPrimitive(klass: KClass<*>): Boolean {
         return klass in setOf(
