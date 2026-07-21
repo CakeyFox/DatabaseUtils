@@ -3,6 +3,8 @@ package net.cakeyfox.foxy.database.data.guild
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import net.cakeyfox.foxy.database.common.data.MongoDateSerializer
 
 @Serializable
@@ -27,6 +29,13 @@ data class Guild(
     val registeredCases: Long? = 0
 )
 
+private object WebhookText {
+    @Serializable
+    private data class Payload(val content: String)
+
+    fun contentJson(text: String): String = Json.encodeToString(Payload(text))
+}
+
 @Serializable
 data class ReportSettings(
     val isEnabled: Boolean = false,
@@ -41,7 +50,7 @@ data class InviteBlockerSettings(
     val blockDisboardInvites: Boolean = false,
     val allowInvitesFromThisServer: Boolean = false,
     val blockDiscordBotInvites: Boolean = false,
-    val message: String? = ""
+    val message: String? = WebhookText.contentJson("{@user}, você não pode enviar convites aqui!")
 )
 
 @Serializable
@@ -87,7 +96,7 @@ data class MusicSettings(
 @Serializable
 data class YouTubeChannel(
     val channelId: String,
-    val notificationMessage: String? = null,
+    val notificationMessage: String? = WebhookText.contentJson("{channel.name} postou vídeo novo! {video.url}"),
     val channelToSend: String? = null,
     val notifiedVideos: List<Video>? = emptyList(),
 ) {
@@ -102,11 +111,11 @@ data class YouTubeChannel(
 @Serializable
 data class WelcomerModule(
     val isEnabled: Boolean = false,
-    val joinMessage: String? = null,
+    val joinMessage: String? = WebhookText.contentJson("{@user}, entrou no servidor!"),
     val alertWhenUserLeaves: Boolean = false,
     val sendDmWelcomeMessage: Boolean = false,
     val dmWelcomeMessage: String? = null,
-    val leaveMessage: String? = null,
+    val leaveMessage: String? = WebhookText.contentJson("{@user}, saiu do servidor!"),
     val joinChannel: String? = null,
     val leaveChannel: String? = null,
 )
