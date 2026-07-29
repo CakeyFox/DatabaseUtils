@@ -50,7 +50,8 @@ data class InviteBlockerSettings(
     val blockDisboardInvites: Boolean = false,
     val allowInvitesFromThisServer: Boolean = false,
     val blockDiscordBotInvites: Boolean = false,
-    val message: String? = WebhookText.contentJson("{@user}, você não pode enviar convites aqui!")
+    val message: String? = WebhookText.contentJson("{@user}, você não pode enviar convites aqui!"),
+    val blockProfileInvitesAutomodRuleId: String? = null
 )
 
 @Serializable

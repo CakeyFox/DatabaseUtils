@@ -310,6 +310,7 @@ class InviteBlockerSettingsBuilder {
     var channelsThatCanSendInvites: MutableList<String>? = null
     var rolesThatCanSendInvites: MutableList<String>? = null
     var message: String? = null
+    var blockProfileInvitesAutomodRuleId: String? = null
 
     fun toDocument(prefix: String): Map<String, Any?> {
         val map = mutableMapOf<String, Any?>()
@@ -317,6 +318,7 @@ class InviteBlockerSettingsBuilder {
         message?.let { map["$prefix.message"] = it }
         channelsThatCanSendInvites?.let { map["$prefix.channelsThatCanSendInvites"] = it }
         rolesThatCanSendInvites?.let { map["$prefix.rolesThatCanSendInvites"] = it }
+        blockProfileInvitesAutomodRuleId?.let { map["$prefix.blockProfileInvitesAutomodRuleId"] = it }
         return map
     }
 }
