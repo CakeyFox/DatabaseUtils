@@ -25,6 +25,7 @@ class FoxyUserBuilder {
     var steamUserId: String? = null
     var robloxUserId: String? = null
     var riotUserId: String? = null
+    var lastBroadcastedMessageId: String? = null
 
     fun toDocument(): Document {
         val setMap = mutableMapOf<String, Any?>()
@@ -41,6 +42,7 @@ class FoxyUserBuilder {
         robloxUserId?.let { setMap["robloxUserId"] = it }
         steamUserId?.let { setMap["steamUserId"] = it }
         riotUserId?.let { setMap["riotUserId"] = it }
+        lastBroadcastedMessageId?.let { setMap["lastBroadcastedMessageId"] = it }
 
         mergeBuilderMaps(userProfile.toDocument("userProfile"), setMap, incMap, pushMap)
         mergeBuilderMaps(userPremium.toDocument("userPremium"), setMap, incMap, pushMap)

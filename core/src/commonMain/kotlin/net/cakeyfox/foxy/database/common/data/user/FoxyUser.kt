@@ -30,6 +30,7 @@ data class FoxyUser(
     val steamUserId: String? = "",
     val riotUserId: String? = "",
     val robloxUserId: String? = "",
+    val lastBroadcastedMessageId: String? = ""
 )
 
 @Serializable

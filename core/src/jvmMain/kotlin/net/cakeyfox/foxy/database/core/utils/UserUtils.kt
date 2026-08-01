@@ -18,6 +18,7 @@ import kotlinx.datetime.Clock
 import kotlinx.datetime.toJavaInstant
 import kotlinx.datetime.toKotlinInstant
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.serializer
@@ -82,11 +83,10 @@ suspend inline fun <reified T> getFoxyProfile(
 
         if (fields.size == 1 && isPrimitive(T::class)) {
             val element = fields[0].split(".").fold(
-                client.json.parseToJsonElement(json)
+                client.json.parseToJsonElement(json) as JsonElement?
             ) { acc, key ->
-                acc.jsonObject[key]
-                    ?: throw NoSuchFieldException("Field '$key' not found in path '${fields[0]}'")
-            }
+                (acc as? JsonObject)?.get(key)
+            } ?: return@withRetry null as T
 
             return@withRetry client.json.decodeFromJsonElement(serializer<T>(), element)
         }

@@ -7,6 +7,7 @@ import mu.KotlinLogging
 import net.cakeyfox.foxy.database.core.DatabaseClient
 import net.cakeyfox.foxy.database.data.bot.Command
 import org.bson.Document
+import java.util.UUID
 
 
 class BotUtils(
@@ -17,7 +18,9 @@ class BotUtils(
         data class BotSettings(
             val activity: String,
             val status: String,
-            val avatarUrl: String?
+            val avatarUrl: String?,
+            val lastBroadcastMessageId: String?,
+            val lastBroadcastMessageContent: String?
         )
 
         private val logger = KotlinLogging.logger { }
@@ -61,12 +64,37 @@ class BotUtils(
                 return BotSettings(
                     activity = "foxybot.xyz · /help",
                     status = "online",
-                    avatarUrl = null
+                    avatarUrl = null,
+                    lastBroadcastMessageId = null,
+                    lastBroadcastMessageContent = null
                 )
             }
 
         val documentToJSON = botSettingsDocument.toJson()
         return client.json.decodeFromString(documentToJSON)
+    }
+
+    suspend fun setBroadcastMessage(messageContent: String) {
+        val botSettings = client.database.getCollection<Document>("botSettings")
+        val botSettingsDocument = botSettings.find().firstOrNull()
+            ?: run {
+                createBotSettings(botSettings)
+                return
+            }
+
+        val documentToJSON = botSettingsDocument.toJson()
+        val botSettingsData = client.json.decodeFromString<BotSettings>(documentToJSON)
+        val broadcastMessageId = UUID.randomUUID().toString()
+
+        val newBotSettings = botSettingsData.copy(
+            lastBroadcastMessageId = broadcastMessageId,
+            lastBroadcastMessageContent = messageContent
+        )
+
+        val documentToJSON2 = client.json.encodeToString(newBotSettings)
+        val document2 = Document.parse(documentToJSON2)
+
+        botSettings.updateOne(botSettingsDocument, document2)
     }
 
     suspend fun getActivity(): String {
@@ -87,7 +115,9 @@ class BotUtils(
         val botSettings = BotSettings(
             activity = "foxybot.xyz · /help",
             status = "online",
-            avatarUrl = null
+            avatarUrl = null,
+            lastBroadcastMessageId = null,
+            lastBroadcastMessageContent = null
         )
 
         logger.info { "Generating Foxy settings..." }
