@@ -65,7 +65,8 @@ class JoinGateSettingsBuilder {
     var blockMemberWithInviteLink: BlockMemberWithInviteLink? = null
 
     fun membersWithoutAvatarHandler(block: MembersWithoutAvatarHandler.() -> Unit) {
-        val handler = membersWithoutAvatarHandler ?: MembersWithoutAvatarHandler().also { membersWithoutAvatarHandler = it }
+        val handler =
+            membersWithoutAvatarHandler ?: MembersWithoutAvatarHandler().also { membersWithoutAvatarHandler = it }
         handler.block()
     }
 
@@ -93,7 +94,7 @@ class JoinGateSettingsBuilder {
         var isEnabled: Boolean = false
         var channelToSendLogs: String = ""
         var action: String = "KICK"
-    
+
         fun toDocument(prefix: String): Document {
             val map = mutableMapOf<String, Any?>()
             map["$prefix.isEnabled"] = isEnabled
@@ -151,6 +152,8 @@ class JoinGateSettingsBuilder {
         var action: String? = null
         var channelToSendLogs: String? = null
         var minimumAccountAge: Long? = null
+        var manualVerificationChannel: String? = null
+        var allowedRolesForVerification: MutableList<String>? = null
 
         fun toDocument(prefix: String): Document {
             val map = mutableMapOf<String, Any?>()
@@ -158,6 +161,8 @@ class JoinGateSettingsBuilder {
             action?.let { map["$prefix.action"] = it }
             channelToSendLogs?.let { map["$prefix.channelToSendLogs"] = it }
             minimumAccountAge?.let { map["$prefix.minimumAccountAge"] = it }
+            manualVerificationChannel?.let { map["$prefix.manualVerificationChannel"] = it }
+            allowedRolesForVerification?.let { map["$prefix.allowedRolesForVerification"] = it }
             return Document(map)
         }
     }
@@ -342,7 +347,7 @@ class GuildSettingsBuilder {
         blockedChannels?.let { map["$prefix.blockedChannels"] = it }
         usersWhoCanAccessDashboard?.let { map["$prefix.usersWhoCanAccessDashboard"] = it }
         disabledCommands?.let { map["$prefix.disabledCommands"] = it }
-        useLegacyCommands?.let { map["$prefix.useLegacyCommands"] = it}
+        useLegacyCommands?.let { map["$prefix.useLegacyCommands"] = it }
         return map
     }
 }

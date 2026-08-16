@@ -95,6 +95,17 @@ data class MusicSettings(
 )
 
 @Serializable
+data class PermissionOverrides(
+    val overrides: List<PermissionOverride> = emptyList()
+) {
+    @Serializable
+    data class PermissionOverride(
+        val roleId: String,
+        val commandName: String
+    )
+}
+
+@Serializable
 data class YouTubeChannel(
     val channelId: String,
     val notificationMessage: String? = WebhookText.contentJson("{channel.name} postou vídeo novo! {video.url}"),
@@ -183,6 +194,8 @@ data class JoinGateModule(
         val action: String = "KICK",
         val channelToSendLogs: String = "",
         val minimumAccountAge: Long = 0,
+        val manualVerificationChannel: String? = null,
+        val allowedRolesForVerification: List<String> = emptyList(),
     )
     @Serializable
     data class MembersWithoutAvatarHandler(
