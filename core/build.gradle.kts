@@ -38,6 +38,10 @@ kotlin {
 
         val jvmMain by getting {
             dependencies {
+                implementation("org.jetbrains.exposed:exposed-core:0.59.0")
+                implementation("org.jetbrains.exposed:exposed-dao:0.59.0")
+                implementation("org.jetbrains.exposed:exposed-jdbc:0.59.0")
+                implementation("org.postgresql:postgresql:42.7.1")
                 implementation("org.mongodb:bson-kotlinx:5.3.0")
                 implementation("org.mongodb:mongodb-driver-kotlin-coroutine:5.3.0")
                 implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.18.0")

@@ -1,5 +1,6 @@
 package net.cakeyfox.foxy.database.core.utils
 
+import com.mongodb.client.model.Filters
 import net.cakeyfox.foxy.database.utils.builders.GuildBuilder
 import org.bson.Document
 import kotlinx.coroutines.flow.firstOrNull
@@ -24,11 +25,13 @@ import net.cakeyfox.foxy.database.data.guild.FoxyverseGuild
 import net.cakeyfox.foxy.database.data.guild.Guild
 import net.cakeyfox.foxy.database.data.guild.GuildSettings
 import net.cakeyfox.foxy.database.data.guild.Key
+import net.cakeyfox.foxy.database.data.guild.Metrics
 import net.cakeyfox.foxy.database.data.guild.ModerationUtils
 import net.cakeyfox.foxy.database.data.guild.MusicSettings
 import net.cakeyfox.foxy.database.data.guild.ServerLogModule
 import net.cakeyfox.foxy.database.data.guild.TempBan
 import net.cakeyfox.foxy.database.data.guild.WelcomerModule
+import net.cakeyfox.foxy.database.utils.builders.MetricBuilder
 import java.util.Date
 import kotlin.time.Duration.Companion.days
 
@@ -251,6 +254,19 @@ class GuildUtils(
         }
     }
 
+    suspend fun addMetricToGuild(guildId: String, block: MetricBuilder.() -> Unit) {
+        val incFields = MetricBuilder().apply(block).toDocument("guildAnalytics")
+
+        if (incFields.isEmpty()) return
+
+        client.withRetry {
+            client.guilds.updateOne(
+                Filters.eq("_id", guildId),
+                Document("\$inc", Document(incFields))
+            )
+        }
+    }
+
     private suspend fun createGuild(guildId: String): Guild {
         return client.withRetry {
             val guilds = client.database.getCollection<Document>("guilds")
@@ -264,7 +280,8 @@ class GuildUtils(
                 guildSettings = GuildSettings(),
                 musicSettings = MusicSettings(),
                 serverLogModule = ServerLogModule(),
-                moderationUtils = ModerationUtils()
+                moderationUtils = ModerationUtils(),
+                guildAnalytics = Metrics()
             )
 
             val documentToJSON = client.json.encodeToString(newGuild)

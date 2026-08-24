@@ -5,6 +5,7 @@ import net.cakeyfox.foxy.database.data.guild.YouTubeChannel
 import org.bson.Document
 import kotlin.collections.map
 import kotlin.collections.mutableListOf
+import kotlin.let
 
 class GuildBuilder {
     val guildJoinLeaveModule = WelcomerModuleBuilder()
@@ -22,6 +23,7 @@ class GuildBuilder {
     val dashboardLogs = mutableListOf<DashboardLogBuilder>()
     val tempBans = mutableListOf<TempBanBuilder>()
     val reportSettings = ReportSettingsBuilder()
+    val guildAnalytics = MetricBuilder()
 
     fun toDocument(): Document {
         val setOps = mutableMapOf<String, Any?>()
@@ -39,6 +41,7 @@ class GuildBuilder {
         setOps.putAll(inviteBlockerSettings.toDocument("inviteBlockerSettings"))
         setOps.putAll(reportSettings.toDocument("reportSettings"))
         setOps.putAll(joinGateSettings.toDocument("joinGateSettings"))
+        setOps.putAll(guildAnalytics.toDocument("guildAnalytics"))
 
         if (followedYouTubeChannels.isNotEmpty()) {
             setOps["followedYouTubeChannels"] = followedYouTubeChannels.map { it.toMap() }
@@ -352,6 +355,27 @@ class GuildSettingsBuilder {
     }
 }
 
+class MetricBuilder {
+    var totalBlockedInvites: Long = 0
+    var totalBlockedSuspectedAccounts: Long = 0
+    var totalReportedMessages: Long = 0
+    var totalVerifiedMembers: Long = 0
+    var totalAddedRoles: Long = 0
+    var totalNotifiedVideos: Long = 0
+
+    fun toDocument(prefix: String): Map<String, Any?> {
+        val map = mutableMapOf<String, Any?>()
+
+        if (totalBlockedInvites != 0L) map["$prefix.totalBlockedInvites"] = totalBlockedInvites
+        if (totalBlockedSuspectedAccounts != 0L) map["$prefix.totalBlockedSuspectedAccounts"] = totalBlockedSuspectedAccounts
+        if (totalReportedMessages != 0L) map["$prefix.totalReportedMessages"] = totalReportedMessages
+        if (totalVerifiedMembers != 0L) map["$prefix.totalVerifiedMembers"] = totalVerifiedMembers
+        if (totalAddedRoles != 0L) map["$prefix.totalAddedRoles"] = totalAddedRoles
+        if (totalNotifiedVideos != 0L) map["$prefix.totalNotifiedVideos"] = totalNotifiedVideos
+
+        return map
+    }
+}
 class MusicSettingsBuilder {
     var defaultVolume: Int? = null
     var is247ModeEnabled: Boolean? = null

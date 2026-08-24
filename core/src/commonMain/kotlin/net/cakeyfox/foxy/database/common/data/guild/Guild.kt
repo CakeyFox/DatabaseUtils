@@ -26,7 +26,18 @@ data class Guild(
     val tempBans: List<TempBan> = emptyList(),
     val joinGateSettings: JoinGateModule = JoinGateModule(),
     val serverLogModule: ServerLogModule = ServerLogModule(),
-    val registeredCases: Long? = 0
+    val registeredCases: Long? = 0,
+    val guildAnalytics: Metrics = Metrics()
+)
+
+@Serializable
+data class Metrics(
+    val totalBlockedInvites: Long = 0,
+    val totalBlockedSuspectedAccounts: Long = 0,
+    val totalReportedMessages: Long = 0,
+    val totalVerifiedMembers: Long = 0,
+    val totalAddedRoles: Long = 0,
+    val totalNotifiedVideos: Long = 0,
 )
 
 private object WebhookText {
