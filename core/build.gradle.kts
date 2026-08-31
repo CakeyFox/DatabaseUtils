@@ -47,6 +47,7 @@ kotlin {
                 implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.18.0")
                 implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.18.0")
                 implementation("com.google.guava:guava:33.5.0-jre")
+                implementation("com.github.ben-manes.caffeine:caffeine:3.2.4")
                 implementation("ch.qos.logback:logback-classic:1.5.8")
                 implementation("io.github.microutils:kotlin-logging:2.1.23")
             }

@@ -1,5 +1,6 @@
 package net.cakeyfox.foxy.database.core.utils
 
+import com.github.benmanes.caffeine.cache.Caffeine
 import com.mongodb.client.model.Filters
 import net.cakeyfox.foxy.database.utils.builders.GuildBuilder
 import org.bson.Document
@@ -33,18 +34,23 @@ import net.cakeyfox.foxy.database.data.guild.TempBan
 import net.cakeyfox.foxy.database.data.guild.WelcomerModule
 import net.cakeyfox.foxy.database.utils.builders.MetricBuilder
 import java.util.Date
+import java.util.concurrent.TimeUnit
 import kotlin.time.Duration.Companion.days
 
 class GuildUtils(
     private val client: DatabaseClient
 ) {
     private val logger = KotlinLogging.logger { }
+    private val guildCache = Caffeine.newBuilder()
+        .expireAfterWrite(1, TimeUnit.HOURS)
+        .build<String, Guild>()
 
-    suspend fun getFoxyverseGuildOrNull(guildId: String): FoxyverseGuild? {
-        return client.withRetry {
-            val query = Document("_id", guildId)
-            client.foxyverseGuilds.find(query).firstOrNull()
-        }
+    private fun updateCache(guildId: String, guild: Guild) {
+        guildCache.put(guildId, guild)
+    }
+
+    private fun invalidateCache(guildId: String) {
+        guildCache.invalidate(guildId)
     }
 
     suspend fun getAllExpiredBans(): Map<String, List<TempBan>> {
@@ -76,6 +82,7 @@ class GuildUtils(
                     )
                 )
             )
+            invalidateCache(guildId)
         }
     }
 
@@ -110,6 +117,7 @@ class GuildUtils(
                 eq("_id", guildId),
                 push("tempBans", tempBan)
             )
+            invalidateCache(guildId)
         }
     }
 
@@ -119,6 +127,7 @@ class GuildUtils(
                 eq("_id", guildId),
                 pull("tempBans", eq("userId", userId))
             )
+            invalidateCache(guildId)
         }
     }
 
@@ -129,8 +138,23 @@ class GuildUtils(
         }
     }
 
+    /**
+     * Fetches a guild, creating it if it doesn't exist yet.
+     * Always goes through the cache.
+     */
     suspend fun getGuild(guildId: String): Guild {
-        return updateGuildWithNewFields(guildId)
+        return client.withRetry {
+            guildCache.getIfPresent(guildId)?.let { return@withRetry it }
+
+            val guilds = client.database.getCollection<Document>("guilds")
+            val existingDocument = guilds.find(eq("_id", guildId))
+                .firstOrNull() ?: return@withRetry createGuild(guildId)
+
+            val decodedGuild = client.json.decodeFromString<Guild>(existingDocument.toJson())
+            updateCache(guildId, decodedGuild)
+
+            decodedGuild
+        }
     }
 
     suspend fun getGuildsLeftMoreThan90Days(): List<Guild> {
@@ -145,10 +169,20 @@ class GuildUtils(
         }
     }
 
+    /**
+     * Same semantics as [getGuild] but returns null instead of creating
+     * a new guild when none exists. Shares the same cache so the two
+     * methods never disagree about a guild's state.
+     */
     suspend fun getGuildOrNull(guildId: String): Guild? {
         return client.withRetry {
+            guildCache.getIfPresent(guildId)?.let { return@withRetry it }
+
             val query = Document("_id", guildId)
-            client.guilds.find(query).firstOrNull()
+            val guild = client.guilds.find(query).firstOrNull() ?: return@withRetry null
+
+            updateCache(guildId, guild)
+            guild
         }
     }
 
@@ -159,19 +193,34 @@ class GuildUtils(
         }
     }
 
+    /**
+     * Applies [block] as an atomic findOneAndUpdate, returning the
+     * post-update document directly from Mongo instead of doing a
+     * separate updateOne + find round trip. The cache is always
+     * refreshed with the fresh value.
+     */
     suspend fun updateGuild(guildId: String, block: GuildBuilder.() -> Unit) {
-        val builder = GuildBuilder().apply(block)
-        val collection = client.database.getCollection<Guild>("guilds")
-        val update = builder.toDocument()
-        val query = Document("_id", guildId)
+        return client.withRetry {
+            val builder = GuildBuilder().apply(block)
+            val collection = client.database.getCollection<Guild>("guilds")
+            val update = builder.toDocument()
+            val query = Document("_id", guildId)
 
-        collection.updateOne(query, update)
+            val updatedGuild = collection.findOneAndUpdate(
+                query,
+                update,
+                FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER)
+            ) ?: return@withRetry
+
+            updateCache(guildId, updatedGuild)
+        }
     }
 
     suspend fun deleteGuild(guildId: String) {
         client.withRetry {
             val guilds = client.database.getCollection<Document>("guilds")
             guilds.deleteOne(eq("_id", guildId))
+            invalidateCache(guildId)
         }
     }
 
@@ -191,10 +240,10 @@ class GuildUtils(
      * Register a punishment as a [Case] and stores the id
      * @param guildId
      * @param punishedMembers
-     * @param punishedStaff
+     * @param staff
      * @param type The punishment [CaseType]
      * @param reason
-     * @param punishmentDuration The punishment duration using [Instant]
+     * @param duration The punishment duration using [Instant]
      */
     suspend fun registerPunishmentAsCase(
         guildId: String,
@@ -241,6 +290,11 @@ class GuildUtils(
         }
     }
 
+    /**
+     * NOTE: this increments `registeredCases` directly on Mongo, bypassing
+     * the Guild cache. It also invalidates the cache so a subsequent
+     * getGuild() doesn't return a stale registeredCases count.
+     */
     private suspend fun getNextCaseId(guildId: String): Long {
         return client.withRetry {
             val result = client.guilds.findOneAndUpdate(
@@ -250,6 +304,7 @@ class GuildUtils(
                     .returnDocument(ReturnDocument.AFTER)
             )
 
+            invalidateCache(guildId)
             result?.registeredCases ?: 0
         }
     }
@@ -264,6 +319,7 @@ class GuildUtils(
                 Filters.eq("_id", guildId),
                 Document("\$inc", Document(incFields))
             )
+            invalidateCache(guildId)
         }
     }
 
@@ -288,23 +344,8 @@ class GuildUtils(
             val document = Document.parse(documentToJSON)
             guilds.insertOne(document)
 
+            updateCache(guildId, newGuild)
             newGuild
-        }
-    }
-
-    // Adding missing fields if necessary
-
-    private suspend fun updateGuildWithNewFields(guildId: String): Guild {
-        return client.withRetry {
-            val guilds = client.database.getCollection<Document>("guilds")
-
-            val existingDocument =
-                guilds.find(eq("_id", guildId))
-                    .firstOrNull() ?: return@withRetry createGuild(guildId)
-
-            val documentToJSON = existingDocument.toJson()
-
-            client.json.decodeFromString<Guild>(documentToJSON.toString())
         }
     }
 }

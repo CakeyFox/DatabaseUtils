@@ -1,6 +1,6 @@
 package net.cakeyfox.foxy.database.core.utils
 
-
+import com.github.benmanes.caffeine.cache.Caffeine
 import net.cakeyfox.foxy.database.utils.builders.FoxyUserBuilder
 import com.mongodb.client.model.Filters.and
 import org.bson.Document
@@ -44,9 +44,43 @@ import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit
 import java.util.Date
 import java.util.UUID
+import java.util.concurrent.TimeUnit
 import kotlin.reflect.KClass
 
 class UserUtils(val client: DatabaseClient) {
+    @PublishedApi
+    internal val userCache = Caffeine.newBuilder()
+        .expireAfterWrite(1, TimeUnit.HOURS)
+        .build<String, FoxyUser>()
+
+    /** Marriages are looked up by either partner's id, so a single
+     *  Marry is cached under both `firstUser.id` and `secondUser.id`. */
+    @PublishedApi
+    internal val marriageCache = Caffeine.newBuilder()
+        .expireAfterWrite(1, TimeUnit.HOURS)
+        .build<String, Marry>()
+
+    @PublishedApi
+    internal fun updateUserCache(userId: String, user: FoxyUser) {
+        userCache.put(userId, user)
+    }
+
+    @PublishedApi
+    internal fun invalidateUserCache(userId: String) {
+        userCache.invalidate(userId)
+    }
+
+    private fun updateMarriageCache(marry: Marry) {
+        marriageCache.put(marry.firstUser.id, marry)
+        marriageCache.put(marry.secondUser.id, marry)
+    }
+
+    private fun invalidateMarriageCache(marry: Marry?) {
+        if (marry == null) return
+        marriageCache.invalidate(marry.firstUser.id)
+        marriageCache.invalidate(marry.secondUser.id)
+    }
+
     suspend fun getUserByPremiumKey(key: String): FoxyUser? {
         return client.withRetry {
             val collection = client.database.getCollection<Document>("keys")
@@ -55,45 +89,71 @@ class UserUtils(val client: DatabaseClient) {
                 ?: return@withRetry null
             val keyToJSON = keyInfo.toJson()
             val keyData = client.json.decodeFromString<Key>(keyToJSON)
+
+            userCache.getIfPresent(keyData.ownedBy!!)?.let { return@withRetry it }
+
             val user = userCollection.find(eq("_id", keyData.ownedBy)).firstOrNull()
                 ?: return@withRetry null
             val documentToJSON = user.toJson()
 
-            client.json.decodeFromString<FoxyUser>(documentToJSON)
+            val decoded = client.json.decodeFromString<FoxyUser>(documentToJSON)
+            updateUserCache(keyData.ownedBy, decoded)
+            decoded
         }
     }
 
-suspend inline fun <reified T> getFoxyProfile(
-    userId: String,
-    vararg fields: String
-): T {
-    return client.withRetry {
-        val collection = client.database.getCollection<Document>("users")
-
-        val projection = if (fields.isNotEmpty())
-            Projections.fields(fields.map { Projections.include(it) })
-        else null
-
-        val document = collection
-            .find(eq("_id", userId))
-            .apply { projection?.let { projection(it) } }
-            .firstOrNull()
-
-        val json = document?.toJson() ?: client.json.encodeToString(createUser(userId))
-
-        if (fields.size == 1 && isPrimitive(T::class)) {
-            val element = fields[0].split(".").fold(
-                client.json.parseToJsonElement(json) as JsonElement?
-            ) { acc, key ->
-                (acc as? JsonObject)?.get(key)
-            } ?: return@withRetry null as T
-
-            return@withRetry client.json.decodeFromJsonElement(serializer<T>(), element)
+    /**
+     * Fetches a user's profile, optionally projecting to specific [fields].
+     *
+     * Caching only applies to *full-profile* requests (no [fields] passed):
+     * that's the only case where we have a complete document to safely
+     * cache. Narrow field projections still hit Mongo directly with a
+     * projection — caching those would mean either serving stale partial
+     * data from unrelated reads, or discarding the DB-side projection and
+     * always pulling the full document, which defeats its purpose.
+     */
+    suspend inline fun <reified T> getFoxyProfile(
+        userId: String,
+        vararg fields: String
+    ): T {
+        if (fields.isEmpty()) {
+            userCache.getIfPresent(userId)?.let { cached ->
+                return client.json.decodeFromString(client.json.encodeToString(cached))
+            }
         }
 
-        client.json.decodeFromString<T>(json)
+        return client.withRetry {
+            val collection = client.database.getCollection<Document>("users")
+
+            val projection = if (fields.isNotEmpty())
+                Projections.fields(fields.map { Projections.include(it) })
+            else null
+
+            val document = collection
+                .find(eq("_id", userId))
+                .apply { projection?.let { projection(it) } }
+                .firstOrNull()
+
+            val json = document?.toJson() ?: client.json.encodeToString(createUser(userId))
+
+            if (fields.isEmpty()) {
+                val fullUser = client.json.decodeFromString<FoxyUser>(json)
+                updateUserCache(userId, fullUser)
+            }
+
+            if (fields.size == 1 && isPrimitive(T::class)) {
+                val element = fields[0].split(".").fold(
+                    client.json.parseToJsonElement(json) as JsonElement?
+                ) { acc, key ->
+                    (acc as? JsonObject)?.get(key)
+                } ?: return@withRetry null as T
+
+                return@withRetry client.json.decodeFromJsonElement(serializer<T>(), element)
+            }
+
+            client.json.decodeFromString<T>(json)
+        }
     }
-}
 
     fun isPrimitive(klass: KClass<*>): Boolean {
         return klass in setOf(
@@ -149,21 +209,46 @@ suspend inline fun <reified T> getFoxyProfile(
             val query = Document("_id", userId)
             val update = builder.toDocument()
             client.users.updateOne(query, update)
+            invalidateUserCache(userId)
         }
     }
 
-
+    /**
+     * Rewritten to increment `voteCount` and `userCakes.balance` atomically
+     * via `$inc` instead of the previous read-then-write pattern (read
+     * voteCount/balance, add in application code, write back). That pattern
+     * is a lost-update race condition even without a cache: two concurrent
+     * votes from the same user (or a vote landing between two getFoxyProfile
+     * reads) can silently drop one of the increments. `$inc` is atomic at
+     * the database level regardless of caching.
+     */
     suspend fun addVote(userId: String) {
-        val voteCount = getFoxyProfile<Int?>(userId, "voteCount") ?: 0
-        val balance = getFoxyProfile<Double>(userId, "userCakes.balance")
-
         client.withRetry {
-            updateUser(userId) {
-                lastVote = Clock.System.now()
-                this.voteCount = voteCount + 1
-                notifiedForVote = false
-                userCakes.balance = balance + 1500
+            if (client.users.find(eq("_id", userId)).firstOrNull() == null) {
+                createUser(userId)
             }
+
+            val query = Document("_id", userId)
+            val update = Document(
+                "\$set", Document(
+                    mapOf(
+                        "lastVote" to Date.from(Clock.System.now().toJavaInstant()),
+                        "notifiedForVote" to false
+                    )
+                )
+            ).apply {
+                put(
+                    "\$inc", Document(
+                        mapOf(
+                            "voteCount" to 1,
+                            "userCakes.balance" to 1500.0
+                        )
+                    )
+                )
+            }
+
+            client.users.updateOne(query, update)
+            invalidateUserCache(userId)
         }
     }
 
@@ -188,6 +273,7 @@ suspend inline fun <reified T> getFoxyProfile(
                 ),
                 UpdateOptions().upsert(true)
             )
+            invalidateUserCache(userId)
         }
     }
 
@@ -197,9 +283,17 @@ suspend inline fun <reified T> getFoxyProfile(
             val update = Document("\$set", Document(updates))
 
             client.users.updateMany(query, update)
+            users.forEach { invalidateUserCache(it._id) }
         }
     }
 
+    /**
+     * Not cached: this needs a live count of users with a strictly higher
+     * balance than the target user, which changes any time *any* user's
+     * balance changes. Caching it per-user would require invalidating on
+     * every other user's cake gain/loss, which isn't worth it for a value
+     * that's cheap to compute on demand.
+     */
     suspend fun getUserRankPosition(userId: String): Int {
         val collection = client.database.getCollection<FoxyUser>("users")
 
@@ -212,6 +306,8 @@ suspend inline fun <reified T> getFoxyProfile(
         return (countAbove + 1).toInt()
     }
 
+    // Not cached, for the same reason as getUserRankPosition: it's a live
+    // aggregate/sorted view over the whole collection, not a per-user read.
     suspend fun getCakesLeaderboardPage(page: Int, pageSize: Int? = 10): List<FoxyUser> {
         val skip = (page - 1) * pageSize!!
 
@@ -231,6 +327,7 @@ suspend inline fun <reified T> getFoxyProfile(
             val update = Document("\$inc", Document("userCakes.balance", amount.toDouble()))
 
             client.users.updateOne(query, update)
+            invalidateUserCache(userId)
         }
     }
 
@@ -240,6 +337,7 @@ suspend inline fun <reified T> getFoxyProfile(
             val update = Document("\$inc", Document("userCakes.balance", -amount.toDouble()))
 
             client.users.updateOne(query, update)
+            invalidateUserCache(userId)
         }
     }
 
@@ -268,12 +366,15 @@ suspend inline fun <reified T> getFoxyProfile(
 
             val update = builder.toDocument()
 
-            marriages.findOneAndUpdate(
+            val result = marriages.findOneAndUpdate(
                 filter,
                 update,
                 FindOneAndUpdateOptions()
                     .returnDocument(ReturnDocument.AFTER)
             )
+
+            result?.let { updateMarriageCache(it) }
+            result
         }
     }
 
@@ -303,35 +404,42 @@ suspend inline fun <reified T> getFoxyProfile(
             val document = Document.parse(documentToJSON)
             collection.insertOne(document)
 
+            updateMarriageCache(newMarriage)
             newMarriage
         }
     }
 
     suspend fun deleteMarriage(userId: String) {
         client.withRetry {
-            val collection = client.database.getCollection<Document>("marriages")
+            val collection = client.database.getCollection<Marry>("marriages")
 
             val filter = or(
                 eq("firstUser.id", userId),
                 eq("secondUser.id", userId)
             )
 
-            collection.findOneAndDelete(filter)
-
+            val deleted = collection.findOneAndDelete(filter)
+            invalidateMarriageCache(deleted)
         }
     }
 
-    suspend fun getMarriage(userId: String): Marry? =
-        client.withRetry {
+    suspend fun getMarriage(userId: String): Marry? {
+        marriageCache.getIfPresent(userId)?.let { return it }
+
+        return client.withRetry {
             val marriages = client.database.getCollection<Marry>("marriages")
 
-            marriages.find(
+            val marry = marriages.find(
                 or(
                     eq("firstUser.id", userId),
                     eq("secondUser.id", userId)
                 )
             ).firstOrNull()
+
+            marry?.let { updateMarriageCache(it) }
+            marry
         }
+    }
 
     suspend fun createUser(userId: String): FoxyUser {
         return client.withRetry {
@@ -355,6 +463,7 @@ suspend inline fun <reified T> getFoxyProfile(
 
             collection.insertOne(document)
 
+            updateUserCache(userId, newUser)
             newUser
         }
     }
