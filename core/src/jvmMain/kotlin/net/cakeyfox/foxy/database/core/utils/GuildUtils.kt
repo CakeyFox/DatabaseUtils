@@ -157,10 +157,10 @@ class GuildUtils(
         }
     }
 
-    suspend fun getGuildsLeftMoreThan90Days(): List<Guild> {
+    suspend fun getGuildsLeftMoreThan14Days(): List<Guild> {
         return client.withRetry {
             val ninetyDaysAgo = Date.from(
-                (Clock.System.now() - 90.days).toJavaInstant()
+                (Clock.System.now() - 14.days).toJavaInstant()
             )
 
             val query = Document("leftAt", Document("\$lt", ninetyDaysAgo))
