@@ -30,6 +30,7 @@ import net.cakeyfox.foxy.database.data.guild.Metrics
 import net.cakeyfox.foxy.database.data.guild.ModerationUtils
 import net.cakeyfox.foxy.database.data.guild.MusicSettings
 import net.cakeyfox.foxy.database.data.guild.ServerLogModule
+import net.cakeyfox.foxy.database.data.guild.StrictMode
 import net.cakeyfox.foxy.database.data.guild.TempBan
 import net.cakeyfox.foxy.database.data.guild.WelcomerModule
 import net.cakeyfox.foxy.database.utils.builders.MetricBuilder
@@ -337,7 +338,8 @@ class GuildUtils(
                 musicSettings = MusicSettings(),
                 serverLogModule = ServerLogModule(),
                 moderationUtils = ModerationUtils(),
-                guildAnalytics = Metrics()
+                guildAnalytics = Metrics(),
+                strictMode = StrictMode()
             )
 
             val documentToJSON = client.json.encodeToString(newGuild)

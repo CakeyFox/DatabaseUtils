@@ -24,6 +24,7 @@ class GuildBuilder {
     val tempBans = mutableListOf<TempBanBuilder>()
     val reportSettings = ReportSettingsBuilder()
     val guildAnalytics = MetricBuilder()
+    val strictMode = StrictModeBuilder()
 
     fun toDocument(): Document {
         val setOps = mutableMapOf<String, Any?>()
@@ -42,6 +43,7 @@ class GuildBuilder {
         setOps.putAll(reportSettings.toDocument("reportSettings"))
         setOps.putAll(joinGateSettings.toDocument("joinGateSettings"))
         setOps.putAll(guildAnalytics.toDocument("guildAnalytics"))
+        setOps.putAll(strictMode.toDocument("strictMode"))
 
         if (followedYouTubeChannels.isNotEmpty()) {
             setOps["followedYouTubeChannels"] = followedYouTubeChannels.map { it.toMap() }
@@ -56,6 +58,18 @@ class GuildBuilder {
         }
 
         return Document("\$set", setOps)
+    }
+}
+
+class StrictModeBuilder {
+    var isEnabled: Boolean? = null
+    var allowedRoles: MutableList<String>? = null
+
+    fun toDocument(prefix: String): Map<String, Any?> {
+        val map = mutableMapOf<String, Any?>()
+        isEnabled?.let { map["$prefix.isEnabled"] = it }
+        allowedRoles?.let { map["$prefix.allowedRoles"] = it }
+        return map
     }
 }
 

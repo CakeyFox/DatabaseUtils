@@ -3,7 +3,6 @@ package net.cakeyfox.foxy.database.data.guild
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import net.cakeyfox.foxy.database.common.data.MongoDateSerializer
 
@@ -27,9 +26,15 @@ data class Guild(
     val joinGateSettings: JoinGateModule = JoinGateModule(),
     val serverLogModule: ServerLogModule = ServerLogModule(),
     val registeredCases: Long? = 0,
-    val guildAnalytics: Metrics = Metrics()
+    val guildAnalytics: Metrics = Metrics(),
+    val strictMode: StrictMode = StrictMode()
 )
 
+@Serializable
+data class StrictMode(
+    val isEnabled: Boolean = false,
+    val allowedRoles: List<String> = emptyList()
+)
 @Serializable
 data class Metrics(
     val totalBlockedInvites: Long = 0,
