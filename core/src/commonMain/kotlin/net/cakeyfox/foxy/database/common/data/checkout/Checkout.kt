@@ -6,5 +6,5 @@ data class Checkout(
     val itemId: String,
     val isApproved: Boolean,
     val paymentId: String? = null,
-    val isAnnual: Boolean = false
+    val isAnnual: Boolean? = false
 )
