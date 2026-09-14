@@ -23,7 +23,7 @@ class PaymentUtils(
         )
     }
 
-    suspend fun getOrCreateCheckout(userId: String, itemId: String) : Checkout {
+    suspend fun getOrCreateCheckout(userId: String, itemId: String, isAnnual: Boolean = false) : Checkout {
         return client.withRetry {
             val checkouts = client.database.getCollection<Checkout>("checkoutlists")
 
@@ -42,6 +42,7 @@ class PaymentUtils(
                     isApproved = false,
                     checkoutId = UUID.randomUUID().toString(),
                     itemId = itemId,
+                    isAnnual = isAnnual
                 )
 
                 checkouts.insertOne(newCheckout)
