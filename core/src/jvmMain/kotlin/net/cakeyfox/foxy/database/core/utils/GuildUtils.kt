@@ -43,7 +43,7 @@ class GuildUtils(
 ) {
     private val logger = KotlinLogging.logger { }
     private val guildCache = Caffeine.newBuilder()
-        .expireAfterWrite(1, TimeUnit.HOURS)
+        .expireAfterWrite(1, TimeUnit.MINUTES)
         .build<String, Guild>()
 
     private fun updateCache(guildId: String, guild: Guild) {
@@ -85,6 +85,10 @@ class GuildUtils(
             )
             invalidateCache(guildId)
         }
+    }
+
+    suspend fun clearCache() {
+        guildCache.invalidateAll()
     }
 
     suspend fun removeGuildKey(guildId: String) {

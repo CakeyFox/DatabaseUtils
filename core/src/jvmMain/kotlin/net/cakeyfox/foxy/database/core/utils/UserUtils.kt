@@ -50,14 +50,14 @@ import kotlin.reflect.KClass
 class UserUtils(val client: DatabaseClient) {
     @PublishedApi
     internal val userCache = Caffeine.newBuilder()
-        .expireAfterWrite(1, TimeUnit.HOURS)
+        .expireAfterWrite(1, TimeUnit.MINUTES)
         .build<String, FoxyUser>()
 
     /** Marriages are looked up by either partner's id, so a single
      *  Marry is cached under both `firstUser.id` and `secondUser.id`. */
     @PublishedApi
     internal val marriageCache = Caffeine.newBuilder()
-        .expireAfterWrite(1, TimeUnit.HOURS)
+        .expireAfterWrite(1, TimeUnit.MINUTES)
         .build<String, Marry>()
 
     @PublishedApi
