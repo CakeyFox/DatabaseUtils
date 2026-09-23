@@ -250,9 +250,13 @@ class ServerLogModule {
 class ModerationUtilsBuilder {
     var sendPunishmentsToAChannel: Boolean? = null
     var customPunishmentMessage: String? = null
+    var channelToSendPunishments: String? = null
+    var sendPunishmentsToDm: Boolean? = null
 
     fun toDocument(prefix: String): Map<String, Any?> {
         val map = mutableMapOf<String, Any?>()
+        channelToSendPunishments?.let { map["$prefix.channelToSendPunishments"] = it }
+        sendPunishmentsToDm?.let { map["$prefix.sendPunishmentsToDm"] = it }
         sendPunishmentsToAChannel?.let { map["$prefix.sendPunishmentsToAChannel"] = it }
         customPunishmentMessage?.let { map["$prefix.customPunishmentMessage"] = it }
         return map
