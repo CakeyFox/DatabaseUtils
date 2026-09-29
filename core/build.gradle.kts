@@ -38,6 +38,8 @@ kotlin {
 
         val jvmMain by getting {
             dependencies {
+                api("org.jetbrains.kotlin:kotlin-reflect:2.2.21")
+
                 implementation("org.jetbrains.exposed:exposed-core:0.59.0")
                 implementation("org.jetbrains.exposed:exposed-dao:0.59.0")
                 implementation("org.jetbrains.exposed:exposed-jdbc:0.59.0")

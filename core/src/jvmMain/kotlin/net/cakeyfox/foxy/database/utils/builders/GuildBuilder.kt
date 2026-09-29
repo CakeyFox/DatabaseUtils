@@ -25,6 +25,7 @@ class GuildBuilder {
     val reportSettings = ReportSettingsBuilder()
     val guildAnalytics = MetricBuilder()
     val strictMode = StrictModeBuilder()
+    val antiSelfbotModule = AntiSelfbotModule()
 
     fun toDocument(): Document {
         val setOps = mutableMapOf<String, Any?>()
@@ -44,6 +45,7 @@ class GuildBuilder {
         setOps.putAll(joinGateSettings.toDocument("joinGateSettings"))
         setOps.putAll(guildAnalytics.toDocument("guildAnalytics"))
         setOps.putAll(strictMode.toDocument("strictMode"))
+        setOps.putAll(antiSelfbotModule.toDocument("antiSelfbotModule"))
 
         if (followedYouTubeChannels.isNotEmpty()) {
             setOps["followedYouTubeChannels"] = followedYouTubeChannels.map { it.toMap() }
@@ -69,6 +71,31 @@ class StrictModeBuilder {
         val map = mutableMapOf<String, Any?>()
         isEnabled?.let { map["$prefix.isEnabled"] = it }
         allowedRoles?.let { map["$prefix.allowedRoles"] = it }
+        return map
+    }
+}
+
+class AntiSelfbotModule {
+    var enableRoleHoneypot: Boolean? = null
+    var enableChannelHoneypot: Boolean? = null
+    var enableMessageHoneypot: Boolean? = null
+    var roleHoneypotPunishment: String? = null
+    var channelHoneypotPunishment: String? = null
+    var messageHoneypotPunishment: String? = null
+    var roles: List<String>? = null
+    var channels: List<String>? = null
+
+    fun toDocument(prefix: String): Map<String, Any?> {
+        val map = mutableMapOf<String, Any?>()
+        enableRoleHoneypot?.let { map["$prefix.enableRoleHoneypot"] = it }
+        enableChannelHoneypot?.let { map["$prefix.enableChannelHoneypot"] = it }
+        enableMessageHoneypot?.let { map["$prefix.enableMessageHoneypot"] = it }
+        roleHoneypotPunishment?.let { map["$prefix.roleHoneypotPunishment"] = it }
+        channelHoneypotPunishment?.let { map["$prefix.channelHoneypotPunishment"] = it }
+        messageHoneypotPunishment?.let { map["$prefix.messageHoneypotPunishment"] = it }
+        roles?.let { map["$prefix.roles"] = it }
+        channels?.let { map["$prefix.channels"] = it }
+
         return map
     }
 }

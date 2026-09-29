@@ -27,7 +27,20 @@ data class Guild(
     val serverLogModule: ServerLogModule = ServerLogModule(),
     val registeredCases: Long? = 0,
     val guildAnalytics: Metrics = Metrics(),
-    val strictMode: StrictMode = StrictMode()
+    val strictMode: StrictMode = StrictMode(),
+    val antiSelfbotModule: AntiSelfbotModule = AntiSelfbotModule(),
+ )
+
+@Serializable
+data class AntiSelfbotModule(
+    val enableRoleHoneypot: Boolean = false,
+    val enableChannelHoneypot: Boolean = false,
+    val enableMessageHoneypot: Boolean = false,
+    val roleHoneypotPunishment: String = "KICK",
+    val channelHoneypotPunishment: String = "KICK",
+    val messageHoneypotPunishment: String = "KICK",
+    val roles: List<String> = emptyList(),
+    val channels: List<String> = emptyList(),
 )
 
 @Serializable

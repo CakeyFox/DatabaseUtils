@@ -25,6 +25,7 @@ import kotlinx.serialization.serializer
 import net.cakeyfox.foxy.database.common.data.marry.CoupleStoreItem
 import net.cakeyfox.foxy.database.common.data.marry.Marry
 import net.cakeyfox.foxy.database.core.DatabaseClient
+import net.cakeyfox.foxy.database.data.checkout.Checkout
 import net.cakeyfox.foxy.database.data.guild.Key
 import net.cakeyfox.foxy.database.data.user.FoxyUser
 import net.cakeyfox.foxy.database.data.user.MarryStatus
@@ -406,6 +407,21 @@ class UserUtils(val client: DatabaseClient) {
 
             updateMarriageCache(newMarriage)
             newMarriage
+        }
+    }
+
+    suspend fun deleteUser(userId: String) {
+        client.withRetry {
+            val users = client.database.getCollection<Document>("users")
+            val keys = client.database.getCollection<Document>("keys")
+            val marriages = client.database.getCollection<Marry>("marriages")
+            val checkouts = client.database.getCollection<Checkout>("checkoutlists")
+
+            users.deleteOne(eq("_id", userId))
+            keys.deleteOne(eq("ownedBy", userId))
+            marriages.deleteMany(or(eq("firstUser.id", userId), eq("secondUser.id", userId)))
+            checkouts.deleteMany(eq("userId", userId))
+            invalidateUserCache(userId)
         }
     }
 
