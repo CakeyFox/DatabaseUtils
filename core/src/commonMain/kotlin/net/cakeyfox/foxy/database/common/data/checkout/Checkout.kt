@@ -1,5 +1,8 @@
 package net.cakeyfox.foxy.database.data.checkout
 
+import kotlinx.serialization.Serializable
+
+@Serializable
 data class Checkout(
     val checkoutId: String,
     val userId: String,

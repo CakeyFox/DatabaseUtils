@@ -5,6 +5,7 @@ import kotlinx.datetime.Instant
 import kotlinx.datetime.toJavaInstant
 import java.util.Date
 
+@FoxyDsl
 class FoxyUserBuilder {
     val userProfile = UserProfileBuilder()
     val userPremium = UserPremiumBuilder()
@@ -78,11 +79,12 @@ class FoxyUserBuilder {
     }
 }
 
+@FoxyDsl
 class NotificationsBuilder {
-    var disableTempBanNotifications: Boolean? = false
-    var disableDailyReminderNotifications: Boolean? = false
-    var disableInactivityTaxNotifications: Boolean? = false
-    var disableUpvoteNotifications: Boolean? = false
+    var disableTempBanNotifications: Boolean? = null
+    var disableDailyReminderNotifications: Boolean? = null
+    var disableInactivityTaxNotifications: Boolean? = null
+    var disableUpvoteNotifications: Boolean? = null
 
     fun toDocument(prefix: String): Document {
         val map = mutableMapOf<String, Any?>()
@@ -95,6 +97,7 @@ class NotificationsBuilder {
     }
 }
 
+@FoxyDsl
 class UserProfileBuilder {
     var background: String? = null
     var layout: String? = null
@@ -137,6 +140,7 @@ class UserProfileBuilder {
     }
 }
 
+@FoxyDsl
 class UserPremiumBuilder {
     var premium: Boolean? = null
     var premiumDate: Instant? = null
@@ -151,6 +155,7 @@ class UserPremiumBuilder {
     }
 }
 
+@FoxyDsl
 class UserCakesBuilder {
     private var balanceIncrement: Double = 0.0
     var balance: Double? = null
@@ -186,6 +191,7 @@ class UserCakesBuilder {
     }
 }
 
+@FoxyDsl
 class MarryStatusBuilder {
     var cantMarry: Boolean? = null
 
@@ -196,11 +202,13 @@ class MarryStatusBuilder {
     }
 }
 
+@FoxyDsl
 class UserSettingsBuilder {
     var language: String? = null
     fun toDocument(prefix: String) = Document().apply { language?.let { put("$prefix.language", it) } }
 }
 
+@FoxyDsl
 class UserBirthdayBuilder {
     var isEnabled: Boolean? = null
     var lastMessage: Instant? = null
@@ -215,6 +223,7 @@ class UserBirthdayBuilder {
     }
 }
 
+@FoxyDsl
 class RouletteBuilder {
     var availableSpins: Int? = null
     fun toDocument(prefix: String) = Document().apply { availableSpins?.let { put("$prefix.availableSpins", it) } }

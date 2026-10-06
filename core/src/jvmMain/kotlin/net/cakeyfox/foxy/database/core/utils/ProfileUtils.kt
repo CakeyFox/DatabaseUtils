@@ -1,10 +1,7 @@
 package net.cakeyfox.foxy.database.core.utils
 
 import com.mongodb.client.model.Filters.eq
-import com.mongodb.client.model.UpdateOptions
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.firstOrNull
-import kotlinx.coroutines.flow.toList
 import kotlinx.datetime.Clock
 import kotlinx.datetime.toJavaInstant
 import mu.KotlinLogging
@@ -30,9 +27,7 @@ class ProfileUtils(
         val layouts = getActiveLayouts()
         val decorations = getActiveDecorations()
 
-        val collection = client.database.getCollection<DailyStore>("dailystores")
-
-        val store = collection.find(eq("id", "store")).first()
+        val store = client.collections.dailyStores.find(eq("id", "store")).first()
 
         val backgroundIds = store.itens
             .filter { it.type == "background" }
@@ -78,83 +73,47 @@ class ProfileUtils(
         )
 
         client.withRetry {
-            val collection = client.database.getCollection<Document>("dailystores")
-            collection.updateOne(
+            client.collections.dailyStores.updateOne(
                 Document("id", "store"),
                 Document("\$set", update),
-                UpdateOptions().upsert(true)
+                upsert = true
             )
         }
     }
 
     suspend fun getActiveBackgrounds(): List<Background> {
-        val collection = client.database.getCollection<Background>("backgrounds")
-
-        val query = Document("inactive", false)
-        return collection.find(query).toList()
+        return client.collections.backgrounds.findMany(Document("inactive", false))
     }
 
     suspend fun getActiveLayouts(): List<Layout> {
-        val collection = client.database.getCollection<Layout>("layouts")
-
-        val query = Document("inactive", false)
-        return collection.find(query).toList()
+        return client.collections.layouts.findMany(Document("inactive", false))
     }
 
     suspend fun getActiveDecorations(): List<Decoration> {
-        val collection = client.database.getCollection<Decoration>("decorations")
-
-        val query = Document("inactive", false)
-        return collection.find(query).toList()
+        return client.collections.decorations.findMany(Document("inactive", false))
     }
 
     suspend fun getBackground(backgroundId: String): Background? {
         return client.withRetry {
-            val collection = client.database.getCollection<Document>("backgrounds")
-
-            val query = Document("id", backgroundId)
-            val existingDocument = collection.find(query).firstOrNull() ?: return@withRetry null
-
-            val documentToJSON = existingDocument.toJson()
-            client.json.decodeFromString<Background>(documentToJSON!!)
+            client.collections.backgrounds.findOne(Document("id", backgroundId))
         }
     }
 
     suspend fun getLayout(layoutId: String): Layout? {
         return client.withRetry {
-            val collection = client.database.getCollection<Document>("layouts")
-
-            val query = Document("id", layoutId)
-            val existingDocument = collection.find(query).firstOrNull() ?: return@withRetry null
-
-            val documentToJSON = existingDocument.toJson()
-            client.json.decodeFromString<Layout>(documentToJSON!!)
+            client.collections.layouts.findOne(Document("id", layoutId))
         }
     }
 
     suspend fun getDecoration(decorationId: String): Decoration? {
         return client.withRetry {
-            val collection = client.database.getCollection<Document>("decorations")
-
-            val query = Document("id", decorationId)
-            val existingDocument = collection.find(query).firstOrNull() ?: return@withRetry null
-
-            val documentToJSON = existingDocument.toJson()
-            client.json.decodeFromString<Decoration>(documentToJSON!!)
+            client.collections.decorations.findOne(Document("id", decorationId))
         }
     }
 
     suspend fun getBadges(): List<Badge> {
         return client.withRetry {
-            val collection= client.database.getCollection<Document>("badges")
-
-            val badges = mutableListOf<Badge>()
-            collection.find().collect {
-                val documentToJSON = it.toJson()
-                badges.add(client.json.decodeFromString<Badge>(documentToJSON!!))
-            }
-
-            badges
+            client.collections.badges.findMany()
         }
     }
 }

@@ -7,13 +7,14 @@ import kotlin.collections.map
 import kotlin.collections.mutableListOf
 import kotlin.let
 
+@FoxyDsl
 class GuildBuilder {
     val guildJoinLeaveModule = WelcomerModuleBuilder()
     val autoRoleModule = AutoRoleModuleBuilder()
     val antiRaidModule = AntiRaidModuleBuilder()
     val guildSettings = GuildSettingsBuilder()
     val musicSettings = MusicSettingsBuilder()
-    val serverLogModule = ServerLogModule()
+    val serverLogModule = ServerLogModuleBuilder()
     val moderationUtils = ModerationUtilsBuilder()
     val inviteBlockerSettings = InviteBlockerSettingsBuilder()
     val joinGateSettings = JoinGateSettingsBuilder()
@@ -25,10 +26,11 @@ class GuildBuilder {
     val reportSettings = ReportSettingsBuilder()
     val guildAnalytics = MetricBuilder()
     val strictMode = StrictModeBuilder()
-    val antiSelfbotModule = AntiSelfbotModule()
+    val antiSelfbotModule = AntiSelfbotModuleBuilder()
 
     fun toDocument(): Document {
         val setOps = mutableMapOf<String, Any?>()
+        val pushOps = mutableMapOf<String, Any?>()
 
         guildAddedAt?.let { setOps["guildAddedAt"] = it }
         leftAt?.let { setOps["leftAt"] = it.toBsonDate() }
@@ -48,21 +50,25 @@ class GuildBuilder {
         setOps.putAll(antiSelfbotModule.toDocument("antiSelfbotModule"))
 
         if (followedYouTubeChannels.isNotEmpty()) {
-            setOps["followedYouTubeChannels"] = followedYouTubeChannels.map { it.toMap() }
+            pushOps["followedYouTubeChannels"] = Document("\$each", followedYouTubeChannels.map { it.toMap() })
         }
 
         if (dashboardLogs.isNotEmpty()) {
-            setOps["dashboardLogs"] = dashboardLogs.map { it.toMap() }
+            pushOps["dashboardLogs"] = Document("\$each", dashboardLogs.map { it.toMap() })
         }
 
         if (tempBans.isNotEmpty()) {
-            setOps["tempBans"] = tempBans.map { it.toMap() }
+            pushOps["tempBans"] = Document("\$each", tempBans.map { it.toMap() })
         }
 
-        return Document("\$set", setOps)
+        val document = Document()
+        if (setOps.isNotEmpty()) document["\$set"] = setOps
+        if (pushOps.isNotEmpty()) document["\$push"] = pushOps
+        return document
     }
 }
 
+@FoxyDsl
 class StrictModeBuilder {
     var isEnabled: Boolean? = null
     var allowedRoles: MutableList<String>? = null
@@ -75,7 +81,8 @@ class StrictModeBuilder {
     }
 }
 
-class AntiSelfbotModule {
+@FoxyDsl
+class AntiSelfbotModuleBuilder {
     var enableRoleHoneypot: Boolean? = null
     var enableChannelHoneypot: Boolean? = null
     var enableMessageHoneypot: Boolean? = null
@@ -100,6 +107,7 @@ class AntiSelfbotModule {
     }
 }
 
+@FoxyDsl
 class JoinGateSettingsBuilder {
     var sendDmWhenPunished: Boolean? = null
     var membersWithoutAvatarHandler: MembersWithoutAvatarHandler? = null
@@ -134,49 +142,52 @@ class JoinGateSettingsBuilder {
         handler.block()
     }
 
+    @FoxyDsl
     inner class BlockMemberWithInviteLink {
-        var isEnabled: Boolean = false
-        var channelToSendLogs: String = ""
-        var action: String = "KICK"
+        var isEnabled: Boolean? = null
+        var channelToSendLogs: String? = null
+        var action: String? = null
 
         fun toDocument(prefix: String): Document {
             val map = mutableMapOf<String, Any?>()
-            map["$prefix.isEnabled"] = isEnabled
-            map["$prefix.channelToSendLogs"] = channelToSendLogs
-            map["$prefix.action"] = action
+            isEnabled?.let { map["$prefix.isEnabled"] = it }
+            channelToSendLogs?.let { map["$prefix.channelToSendLogs"] = it }
+            action?.let { map["$prefix.action"] = it }
             return Document(map)
         }
     }
 
+    @FoxyDsl
     inner class ThirdPartyAuthSettings {
-        var isEnabled: Boolean = false
-        var channelToSendVerification: String = ""
-        var useRobloxAuthentication: Boolean = false
-        var useSteamAuthentication: Boolean = false
-        var useRiotGamesAuthentication: Boolean = false
-        var verifiedRole: String = ""
-        var enableSeparatedRoles: Boolean = false
-        var roleForSteam: String = ""
-        var roleForRiot: String = ""
-        var roleForRoblox: String = ""
+        var isEnabled: Boolean? = null
+        var channelToSendVerification: String? = null
+        var useRobloxAuthentication: Boolean? = null
+        var useSteamAuthentication: Boolean? = null
+        var useRiotGamesAuthentication: Boolean? = null
+        var verifiedRole: String? = null
+        var enableSeparatedRoles: Boolean? = null
+        var roleForSteam: String? = null
+        var roleForRiot: String? = null
+        var roleForRoblox: String? = null
 
         fun toDocument(prefix: String): Document {
             val map = mutableMapOf<String, Any?>()
-            map["$prefix.isEnabled"] = isEnabled
-            map["$prefix.channelToSendVerification"] = channelToSendVerification
-            map["$prefix.useRobloxAuthentication"] = useRobloxAuthentication
-            map["$prefix.useSteamAuthentication"] = useSteamAuthentication
-            map["$prefix.useRiotGamesAuthentication"] = useRiotGamesAuthentication
-            map["$prefix.verifiedRole"] = verifiedRole
-            map["$prefix.enableSeparatedRoles"] = enableSeparatedRoles
-            map["$prefix.roleForSteam"] = roleForSteam
-            map["$prefix.roleForRiot"] = roleForRiot
-            map["$prefix.roleForRoblox"] = roleForRoblox
+            isEnabled?.let { map["$prefix.isEnabled"] = it }
+            channelToSendVerification?.let { map["$prefix.channelToSendVerification"] = it }
+            useRobloxAuthentication?.let { map["$prefix.useRobloxAuthentication"] = it }
+            useSteamAuthentication?.let { map["$prefix.useSteamAuthentication"] = it }
+            useRiotGamesAuthentication?.let { map["$prefix.useRiotGamesAuthentication"] = it }
+            verifiedRole?.let { map["$prefix.verifiedRole"] = it }
+            enableSeparatedRoles?.let { map["$prefix.enableSeparatedRoles"] = it }
+            roleForSteam?.let { map["$prefix.roleForSteam"] = it }
+            roleForRiot?.let { map["$prefix.roleForRiot"] = it }
+            roleForRoblox?.let { map["$prefix.roleForRoblox"] = it }
 
             return Document(map)
         }
     }
 
+    @FoxyDsl
     inner class MembersWithoutAvatarHandler {
         var isEnabled: Boolean? = null
         var channelToSendLogs: String? = null
@@ -191,6 +202,7 @@ class JoinGateSettingsBuilder {
         }
     }
 
+    @FoxyDsl
     inner class NewAccountsHandler {
         var isEnabled: Boolean? = null
         var action: String? = null
@@ -211,6 +223,7 @@ class JoinGateSettingsBuilder {
         }
     }
 
+    @FoxyDsl
     inner class UnverifiedBotsAdditions {
         var isEnabled: Boolean? = null
         var action: String? = null
@@ -238,6 +251,7 @@ class JoinGateSettingsBuilder {
     }
 }
 
+@FoxyDsl
 class ReportSettingsBuilder {
     var isEnabled: Boolean? = null
     var channelToSendReports: String? = null
@@ -250,7 +264,8 @@ class ReportSettingsBuilder {
     }
 }
 
-class ServerLogModule {
+@FoxyDsl
+class ServerLogModuleBuilder {
     var sendVoiceChannelLogs: Boolean? = null
     var sendDeletedMessagesLogs: Boolean? = null
     var sendUpdatedMessagesLogs: Boolean? = null
@@ -274,6 +289,7 @@ class ServerLogModule {
     }
 }
 
+@FoxyDsl
 class ModerationUtilsBuilder {
     var sendPunishmentsToAChannel: Boolean? = null
     var customPunishmentMessage: String? = null
@@ -290,6 +306,7 @@ class ModerationUtilsBuilder {
     }
 }
 
+@FoxyDsl
 class WelcomerModuleBuilder {
     var isEnabled: Boolean? = null
     var joinMessage: String? = null
@@ -314,6 +331,7 @@ class WelcomerModuleBuilder {
     }
 }
 
+@FoxyDsl
 class AutoRoleModuleBuilder {
     var isEnabled: Boolean? = null
     var roles: MutableList<String>? = null
@@ -326,6 +344,7 @@ class AutoRoleModuleBuilder {
     }
 }
 
+@FoxyDsl
 class AntiRaidModuleBuilder {
     var handleMultipleMessages: Boolean? = null
     var handleMultipleJoins: Boolean? = null
@@ -360,6 +379,7 @@ class AntiRaidModuleBuilder {
     }
 }
 
+@FoxyDsl
 class InviteBlockerSettingsBuilder {
     var isEnabled: Boolean? = null
     var channelsThatCanSendInvites: MutableList<String>? = null
@@ -378,6 +398,7 @@ class InviteBlockerSettingsBuilder {
     }
 }
 
+@FoxyDsl
 class GuildSettingsBuilder {
     var prefix: String? = null
     var language: String? = null
@@ -402,6 +423,7 @@ class GuildSettingsBuilder {
     }
 }
 
+@FoxyDsl
 class MetricBuilder {
     var totalBlockedInvites: Long = 0
     var totalBlockedSuspectedAccounts: Long = 0
@@ -423,6 +445,8 @@ class MetricBuilder {
         return map
     }
 }
+
+@FoxyDsl
 class MusicSettingsBuilder {
     var defaultVolume: Int? = null
     var is247ModeEnabled: Boolean? = null
@@ -437,6 +461,7 @@ class MusicSettingsBuilder {
     }
 }
 
+@FoxyDsl
 class TempBanBuilder {
     var userId: String? = null
     var reason: String? = null
@@ -451,6 +476,7 @@ class TempBanBuilder {
     }
 }
 
+@FoxyDsl
 class YouTubeChannelBuilder {
     var channelId: String? = null
     var notificationMessage: String? = null
@@ -469,6 +495,7 @@ class YouTubeChannelBuilder {
     }
 }
 
+@FoxyDsl
 class DashboardLogBuilder {
     var authorId: String? = null
     var actionType: String? = null

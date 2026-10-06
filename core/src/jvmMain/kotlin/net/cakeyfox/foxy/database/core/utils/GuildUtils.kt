@@ -4,7 +4,6 @@ import com.github.benmanes.caffeine.cache.Caffeine
 import com.mongodb.client.model.Filters
 import net.cakeyfox.foxy.database.utils.builders.GuildBuilder
 import org.bson.Document
-import kotlinx.coroutines.flow.firstOrNull
 import mu.KotlinLogging
 import com.mongodb.client.model.Filters.eq
 import com.mongodb.client.model.FindOneAndUpdateOptions
@@ -12,17 +11,17 @@ import com.mongodb.client.model.ReturnDocument
 import com.mongodb.client.model.Updates.pull
 import com.mongodb.client.model.Updates.push
 import com.mongodb.client.model.Updates.set
-import kotlinx.coroutines.flow.toList
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlinx.datetime.toJavaInstant
 import net.cakeyfox.foxy.database.common.data.guild.Case
 import net.cakeyfox.foxy.database.common.data.guild.CaseType
+import net.cakeyfox.foxy.database.common.data.guild.GuildErrors
 import net.cakeyfox.foxy.database.core.DatabaseClient
+import net.cakeyfox.foxy.database.core.encodeToDocument
 import net.cakeyfox.foxy.database.data.guild.AntiRaidModule
 import net.cakeyfox.foxy.database.data.guild.AutoRoleModule
 import net.cakeyfox.foxy.database.data.guild.DashboardLog
-import net.cakeyfox.foxy.database.data.guild.FoxyverseGuild
 import net.cakeyfox.foxy.database.data.guild.Guild
 import net.cakeyfox.foxy.database.data.guild.GuildSettings
 import net.cakeyfox.foxy.database.data.guild.Key
@@ -45,25 +44,25 @@ class GuildUtils(
     private val guildCache = Caffeine.newBuilder()
         .expireAfterWrite(1, TimeUnit.MINUTES)
         .build<String, Guild>()
+    private val guildErrorCache = Caffeine.newBuilder()
+    .expireAfterWrite(1, TimeUnit.MINUTES)
+    .build<String, List<GuildErrors>>()
 
-    private fun updateCache(guildId: String, guild: Guild) {
+    internal fun updateCache(guildId: String, guild: Guild) {
         guildCache.put(guildId, guild)
     }
 
-    private fun invalidateCache(guildId: String) {
+    internal fun invalidateCache(guildId: String) {
         guildCache.invalidate(guildId)
     }
 
     suspend fun getAllExpiredBans(): Map<String, List<TempBan>> {
         return client.withRetry {
-            val guildsCollection = client.database.getCollection<Document>("guilds")
             val now = Clock.System.now()
 
-            val allGuilds = guildsCollection.find().toList()
+            val allGuilds = client.collections.guilds.findMany()
 
-            allGuilds.mapNotNull { guildDoc ->
-                val guildJson = guildDoc.toJson()
-                val guild = client.json.decodeFromString<Guild>(guildJson)
+            allGuilds.mapNotNull { guild ->
                 val expiredBans = guild.tempBans.orEmpty().filter { it.duration != null && it.duration <= now }
 
                 if (expiredBans.isNotEmpty()) guild._id to expiredBans else null
@@ -71,15 +70,64 @@ class GuildUtils(
         }
     }
 
+    suspend fun addErrorLogToGuild(
+        guildId: String,
+        errorCode: Int? = 0,
+        errorMessage: String? = null,
+        affectedMembers: List<String>? = emptyList(),
+        requiredPermission: String? = null,
+    ) {
+        return client.withRetry {
+            val errorLength = client.collections.guildErrors.count(eq("guildId", guildId))
+
+            if (errorLength >= 10) {
+                client.collections.guildErrors.deleteOne(eq("guildId", guildId))
+            }
+
+            client.collections.guildErrors.insertOne(
+                GuildErrors(
+                    guildId,
+                    errorCode,
+                    affectedMembers,
+                    errorMessage,
+                    requiredPermission
+                )
+            )
+
+            guildErrorCache.invalidate(guildId)
+            guildErrorCache.put(guildId, client.collections.guildErrors.findMany(eq("guildId", guildId)))
+        }
+    }
+
+    suspend fun getErrorLogFromGuild(guildId: String): List<GuildErrors> {
+        return client.withRetry {
+            val logs = client.collections.guildErrors.findMany(eq("guildId", guildId))
+
+            guildErrorCache.put(guildId, logs)
+            return@withRetry logs
+        }
+    }
+
+    suspend fun clearErrorLogFromGuild(guildId: String) {
+        return client.withRetry {
+            client.collections.guildErrors.deleteMany(eq("guildId", guildId))
+
+            guildErrorCache.invalidate(guildId)
+        }
+    }
+
     suspend fun addLogToGuild(guildId: String, authorId: String, actionType: String) {
         return client.withRetry {
-            client.guilds.updateOne(
+            client.collections.guilds.updateOne(
                 eq("_id", guildId),
                 push(
-                    "dashboardLogs", DashboardLog(
-                        authorId,
-                        actionType,
-                        date = Clock.System.now().toEpochMilliseconds()
+                    "dashboardLogs",
+                    client.encodeToDocument(
+                        DashboardLog(
+                            authorId,
+                            actionType,
+                            date = Clock.System.now().toEpochMilliseconds()
+                        )
                     )
                 )
             )
@@ -93,12 +141,10 @@ class GuildUtils(
 
     suspend fun removeGuildKey(guildId: String) {
         return client.withRetry {
-            val currentGuildKey = client.guild.getKeyByGuildId(guildId) ?: return@withRetry
+            val currentGuildKey = getKeyByGuildId(guildId) ?: return@withRetry
 
-            val query = Document("key", currentGuildKey.key)
-
-            client.premiumKeys.findOneAndUpdate(
-                query,
+            client.collections.premiumKeys.updateOne(
+                Document("key", currentGuildKey.key),
                 set("usedBy", null)
             )
         }
@@ -107,10 +153,9 @@ class GuildUtils(
     suspend fun addGuildKey(userId: String, guildId: String) {
         return client.withRetry {
             val userKey = client.payment.getKeyByUserId(userId) ?: return@withRetry
-            val query = Document("key", userKey.key)
 
-            client.premiumKeys.findOneAndUpdate(
-                query,
+            client.collections.premiumKeys.updateOne(
+                Document("key", userKey.key),
                 set("usedBy", guildId)
             )
         }
@@ -118,9 +163,9 @@ class GuildUtils(
 
     suspend fun addTempBanToGuild(guildId: String, tempBan: TempBan) {
         return client.withRetry {
-            client.guilds.updateOne(
+            client.collections.guilds.updateOne(
                 eq("_id", guildId),
-                push("tempBans", tempBan)
+                push("tempBans", client.encodeToDocument(tempBan))
             )
             invalidateCache(guildId)
         }
@@ -128,7 +173,7 @@ class GuildUtils(
 
     suspend fun removeTempBanFromGuild(guildId: String, userId: String) {
         return client.withRetry {
-            client.guilds.updateOne(
+            client.collections.guilds.updateOne(
                 eq("_id", guildId),
                 pull("tempBans", eq("userId", userId))
             )
@@ -138,8 +183,7 @@ class GuildUtils(
 
     suspend fun getKeyByGuildId(guildId: String): Key? {
         return client.withRetry {
-            val query = Document("usedBy", guildId)
-            client.premiumKeys.find(query).firstOrNull()
+            client.collections.premiumKeys.findOne(Document("usedBy", guildId))
         }
     }
 
@@ -151,26 +195,23 @@ class GuildUtils(
         return client.withRetry {
             guildCache.getIfPresent(guildId)?.let { return@withRetry it }
 
-            val guilds = client.database.getCollection<Document>("guilds")
-            val existingDocument = guilds.find(eq("_id", guildId))
-                .firstOrNull() ?: return@withRetry createGuild(guildId)
+            val existingGuild = client.collections.guilds.findOne(Document("_id", guildId))
+                ?: return@withRetry createGuild(guildId)
 
-            val decodedGuild = client.json.decodeFromString<Guild>(existingDocument.toJson())
-            updateCache(guildId, decodedGuild)
-
-            decodedGuild
+            updateCache(guildId, existingGuild)
+            existingGuild
         }
     }
 
     suspend fun getGuildsLeftMoreThan14Days(): List<Guild> {
         return client.withRetry {
-            val ninetyDaysAgo = Date.from(
+            val fourteenDaysAgo = Date.from(
                 (Clock.System.now() - 14.days).toJavaInstant()
             )
 
-            val query = Document("leftAt", Document("\$lt", ninetyDaysAgo))
+            val query = Document("leftAt", Document("\$lt", fourteenDaysAgo))
 
-            client.guilds.find(query).toList()
+            client.collections.guilds.findMany(query)
         }
     }
 
@@ -183,8 +224,7 @@ class GuildUtils(
         return client.withRetry {
             guildCache.getIfPresent(guildId)?.let { return@withRetry it }
 
-            val query = Document("_id", guildId)
-            val guild = client.guilds.find(query).firstOrNull() ?: return@withRetry null
+            val guild = client.collections.guilds.findOne(Document("_id", guildId)) ?: return@withRetry null
 
             updateCache(guildId, guild)
             guild
@@ -193,8 +233,7 @@ class GuildUtils(
 
     suspend fun getGuildsByFollowedYouTubeChannel(channelId: String): List<Guild> {
         return client.withRetry {
-            val query = Document("followedYouTubeChannels.channelId", channelId)
-            client.guilds.find(query).toList()
+            client.collections.guilds.findMany(Document("followedYouTubeChannels.channelId", channelId))
         }
     }
 
@@ -207,14 +246,13 @@ class GuildUtils(
     suspend fun updateGuild(guildId: String, block: GuildBuilder.() -> Unit) {
         return client.withRetry {
             val builder = GuildBuilder().apply(block)
-            val collection = client.database.getCollection<Guild>("guilds")
             val update = builder.toDocument()
-            val query = Document("_id", guildId)
+            if (update.isEmpty()) return@withRetry
 
-            val updatedGuild = collection.findOneAndUpdate(
-                query,
+            val updatedGuild = client.collections.guilds.findOneAndUpdate(
+                Document("_id", guildId),
                 update,
-                FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER)
+                returnDocument = ReturnDocument.AFTER
             ) ?: return@withRetry
 
             updateCache(guildId, updatedGuild)
@@ -223,21 +261,18 @@ class GuildUtils(
 
     suspend fun deleteGuild(guildId: String) {
         client.withRetry {
-            val guilds = client.database.getCollection<Document>("guilds")
-            guilds.deleteOne(eq("_id", guildId))
+            client.collections.guilds.deleteOne(eq("_id", guildId))
             invalidateCache(guildId)
         }
     }
 
     suspend fun getCaseById(guildId: String, caseId: Long): Case? {
         return client.withRetry {
-            val cases = client.database.getCollection<Case>("cases")
-
-            val filter = Document()
-                .append("guildId", guildId)
-                .append("caseId", caseId)
-
-            cases.find(filter).firstOrNull()
+            client.collections.cases.findOne(
+                Document()
+                    .append("guildId", guildId)
+                    .append("caseId", caseId)
+            )
         }
     }
 
@@ -273,11 +308,7 @@ class GuildUtils(
                 true,
             )
 
-            val documentToJSON = client.json.encodeToString(case)
-            val document = Document.parse(documentToJSON)
-            client.database
-                .getCollection<Document>("cases")
-                .insertOne(document)
+            client.collections.cases.insertOne(case)
 
             case
         }
@@ -285,13 +316,11 @@ class GuildUtils(
 
     suspend fun getCaseByUserId(guildId: String, userId: String): List<Case> {
         return client.withRetry {
-            val cases = client.database.getCollection<Case>("cases")
-
-            val filter = Document()
-                .append("guildId", guildId)
-                .append("members", userId)
-
-            return@withRetry cases.find(filter).toList()
+            client.collections.cases.findMany(
+                Document()
+                    .append("guildId", guildId)
+                    .append("members", userId)
+            )
         }
     }
 
@@ -302,11 +331,10 @@ class GuildUtils(
      */
     private suspend fun getNextCaseId(guildId: String): Long {
         return client.withRetry {
-            val result = client.guilds.findOneAndUpdate(
+            val result = client.collections.guilds.findOneAndUpdate(
                 Document("_id", guildId),
                 Document("\$inc", Document("registeredCases", 1)),
-                FindOneAndUpdateOptions()
-                    .returnDocument(ReturnDocument.AFTER)
+                returnDocument = ReturnDocument.AFTER
             )
 
             invalidateCache(guildId)
@@ -320,7 +348,7 @@ class GuildUtils(
         if (incFields.isEmpty()) return
 
         client.withRetry {
-            client.guilds.updateOne(
+            client.collections.guilds.updateOne(
                 Filters.eq("_id", guildId),
                 Document("\$inc", Document(incFields))
             )
@@ -330,8 +358,6 @@ class GuildUtils(
 
     private suspend fun createGuild(guildId: String): Guild {
         return client.withRetry {
-            val guilds = client.database.getCollection<Document>("guilds")
-
             val newGuild = Guild(
                 _id = guildId,
                 guildAddedAt = System.currentTimeMillis(),
@@ -346,9 +372,7 @@ class GuildUtils(
                 strictMode = StrictMode()
             )
 
-            val documentToJSON = client.json.encodeToString(newGuild)
-            val document = Document.parse(documentToJSON)
-            guilds.insertOne(document)
+            client.collections.guilds.insertOne(newGuild)
 
             updateCache(guildId, newGuild)
             newGuild

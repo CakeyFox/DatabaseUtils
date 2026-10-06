@@ -2,15 +2,10 @@ package net.cakeyfox.foxy.database.core.utils
 
 import com.mongodb.client.model.Filters.and
 import com.mongodb.client.model.Filters.eq
-import com.mongodb.client.model.ReplaceOptions
-import com.mongodb.client.model.UpdateOptions
 import com.mongodb.client.model.Updates.combine
 import com.mongodb.client.model.Updates.pull
 import com.mongodb.client.model.Updates.push
 import com.mongodb.client.model.Updates.set
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.firstOrNull
-import kotlinx.coroutines.flow.toList
 import mu.KotlinLogging
 import net.cakeyfox.foxy.database.core.DatabaseClient
 import net.cakeyfox.foxy.database.data.bot.YouTubeWebhook
@@ -22,21 +17,18 @@ class YouTubeUtils(
 ) {
     private val logger = KotlinLogging.logger {}
 
-    companion object {
-        private const val YOUTUBE_WEBHOOKS = "youtubeWebhooks"
-    }
-
     suspend fun removeChannelFromGuild(guildId: String, channelId: String) {
         client.withRetry {
-            client.guilds.updateOne(
+            client.collections.guilds.updateOne(
                 eq("_id", guildId),
                 pull("followedYouTubeChannels", Document("channelId", channelId))
             )
+            client.guild.invalidateCache(guildId)
         }
     }
 
     suspend fun getAllFollowedYouTubeChannelIds(): List<String> {
-        val guilds = client.guilds.find().toList()
+        val guilds = client.collections.guilds.findMany()
 
         return guilds
             .flatMap { guild -> guild.followedYouTubeChannels.map { it.channelId } }
@@ -52,10 +44,11 @@ class YouTubeUtils(
                 "notifiedVideos" to emptyList<String>()
             )
 
-            client.guilds.updateOne(
+            client.collections.guilds.updateOne(
                 eq("_id", guildId),
-                push("followedYouTubeChannels", channelDoc)
+                push("followedYouTubeChannels", Document(channelDoc))
             )
+            client.guild.invalidateCache(guildId)
         }
     }
 
@@ -66,7 +59,7 @@ class YouTubeUtils(
         message: String?
     ) {
         client.withRetry {
-            client.guilds.findOneAndUpdate(
+            client.collections.guilds.findOneAndUpdate(
                 and(
                     eq("_id", guildId),
                     eq("followedYouTubeChannels.channelId", youtubeChannelId)
@@ -81,6 +74,7 @@ class YouTubeUtils(
                     }
                 )
             )
+            client.guild.invalidateCache(guildId)
         }
     }
 
@@ -95,48 +89,41 @@ class YouTubeUtils(
                 )
             )
 
-            val options = UpdateOptions().arrayFilters(
-                listOf(Document("elem.channelId", channelId))
+            client.collections.guilds.updateOne(
+                query,
+                update,
+                arrayFilters = listOf(Document("elem.channelId", channelId))
             )
-
-            client.guilds.updateOne(query, update, options)
+            client.guild.invalidateCache(guildId)
         }
     }
 
     suspend fun getYouTubeWebhooks(): List<YouTubeWebhook> {
         return client.withRetry {
-            val webhooks = client.youtubeWebhooks.find().toList()
-
-            webhooks
+            client.collections.youtubeWebhooks.findMany()
         }
     }
 
     suspend fun getOrRegisterYouTubeWebhook(channelId: String): YouTubeWebhook {
         return client.withRetry {
-            val collection = client.database.getCollection<Document>(YOUTUBE_WEBHOOKS)
-            val youtubeChannel = collection.find(eq("channelId", channelId)).firstOrNull()
+            client.collections.youtubeWebhooks.findOne(eq("channelId", channelId))
                 ?: return@withRetry registerOrUpdateYouTubeWebhook(channelId)
-
-            val documentToJSON = youtubeChannel.toJson()
-            client.json.decodeFromString<YouTubeWebhook>(documentToJSON)
         }
     }
 
     suspend fun registerOrUpdateYouTubeWebhook(channelId: String): YouTubeWebhook {
         return client.withRetry {
-            val collection = client.database.getCollection<Document>(YOUTUBE_WEBHOOKS)
-            val query = eq("channelId", channelId)
-
             val newWebhook = YouTubeWebhook(
                 channelId = channelId,
                 createdAt = System.currentTimeMillis(),
                 leaseSeconds = 432_000
             )
 
-            val documentToJSON = client.json.encodeToString(newWebhook)
-            val document = Document.parse(documentToJSON)
-
-            val result = collection.replaceOne(query, document, ReplaceOptions().upsert(true))
+            val result = client.collections.youtubeWebhooks.replaceOne(
+                eq("channelId", channelId),
+                newWebhook,
+                upsert = true
+            )
 
             if (result.matchedCount == 0L) {
                 logger.info { "Created new webhook for $channelId" }

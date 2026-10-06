@@ -2,7 +2,6 @@ package net.cakeyfox.foxy.database.core.utils
 
 import com.mongodb.client.model.Filters.and
 import com.mongodb.client.model.Filters.eq
-import kotlinx.coroutines.flow.firstOrNull
 import net.cakeyfox.foxy.database.core.DatabaseClient
 import net.cakeyfox.foxy.database.data.checkout.Checkout
 import net.cakeyfox.foxy.database.data.guild.Key
@@ -15,25 +14,24 @@ class PaymentUtils(
     private val client: DatabaseClient
 ) {
     suspend fun updateCheckout(checkoutId: String, block: CheckoutBuilder.() -> Unit) {
-        val builder = CheckoutBuilder().apply(block)
-        val collection = client.database.getCollection<Checkout>("checkoutlists")
-        collection.updateOne(
+        val update = CheckoutBuilder().apply(block).toDocument()
+        if (update.isEmpty()) return
+
+        client.collections.checkouts.updateOne(
             Document("checkoutId", checkoutId),
-            Document("\$set", builder.toDocument())
+            Document("\$set", update)
         )
     }
 
     suspend fun getOrCreateCheckout(userId: String, itemId: String, isAnnual: Boolean = false, valueToPay: Double? = null) : Checkout {
         return client.withRetry {
-            val checkouts = client.database.getCollection<Checkout>("checkoutlists")
-
-            val existingDocument = checkouts.find(
+            val existingDocument = client.collections.checkouts.findOne(
                 and(
                     eq("userId", userId),
                     eq("isApproved", false)
                 )
-            ).firstOrNull()
-            
+            )
+
             if (existingDocument != null) {
                 existingDocument
             } else {
@@ -46,61 +44,43 @@ class PaymentUtils(
                     isAnnual = isAnnual
                 )
 
-                checkouts.insertOne(newCheckout)
+                client.collections.checkouts.insertOne(newCheckout)
                 newCheckout
             }
         }
     }
-    
+
     suspend fun getCheckout(checkoutId: String): Checkout? {
         return client.withRetry {
-            val checkouts = client.database.getCollection<Checkout>("checkoutlists")
-            val existingDocument = checkouts.find(
+            client.collections.checkouts.findOne(
                 and(
                     eq("checkoutId", checkoutId),
                     eq("isApproved", false)
                 )
-            ).firstOrNull()
-
-            existingDocument
+            )
         }
     }
 
     suspend fun getProductFromStore(productId: String): StoreItem? {
         return client.withRetry {
-            val storeItems = client.database.getCollection<StoreItem>("storeitems")
-            val existingDocument = storeItems.find(eq("itemId", productId))
-                .firstOrNull()
-
-            existingDocument
+            client.collections.storeItems.findOne(eq("itemId", productId))
         }
     }
 
     suspend fun getCheckoutByUserId(userId: String): Checkout? {
         return client.withRetry {
-            val checkouts = client.database.getCollection<Checkout>("checkoutlists")
-            val existingDocument = checkouts.find(
+            client.collections.checkouts.findOne(
                 and(
                     eq("userId", userId),
                     eq("isApproved", false)
                 )
             )
-                .firstOrNull()
-
-            existingDocument
         }
     }
 
     suspend fun getKeyByUserId(userId: String): Key? {
         return client.withRetry {
-            val keys = client.database.getCollection<Key>("keys")
-            val existingDocument = keys.find(
-                and(
-                    eq("ownedBy", userId)
-                )
-            ).firstOrNull()
-
-            existingDocument
+            client.collections.premiumKeys.findOne(eq("ownedBy", userId))
         }
     }
 
@@ -116,9 +96,8 @@ class PaymentUtils(
         )
 
         return client.withRetry {
-            val keys = client.database.getCollection<Key>("keys")
-            keys.find(eq("ownedBy", userId)).firstOrNull() ?: run {
-                keys.insertOne(key)
+            client.collections.premiumKeys.findOne(eq("ownedBy", userId)) ?: run {
+                client.collections.premiumKeys.insertOne(key)
                 key
             }
         }
@@ -126,8 +105,7 @@ class PaymentUtils(
 
     suspend fun deleteCheckout(checkoutId: String): Boolean {
         return client.withRetry {
-            val checkouts = client.database.getCollection<Checkout>("checkoutlists")
-            checkouts.deleteOne(eq("checkoutId", checkoutId))
+            client.collections.checkouts.deleteOne(eq("checkoutId", checkoutId))
 
             true
         }

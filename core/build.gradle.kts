@@ -2,7 +2,7 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
-    kotlin("plugin.serialization") version "2.2.21"
+    alias(libs.plugins.kotlinSerialization)
     alias(libs.plugins.vanniktech.mavenPublish)
 }
 
@@ -55,7 +55,11 @@ kotlin {
             }
         }
 
-        val jvmTest by getting
+        val jvmTest by getting {
+            dependencies {
+                implementation(libs.kotlin.test)
+            }
+        }
         val jsMain by getting
         val jsTest by getting
     }

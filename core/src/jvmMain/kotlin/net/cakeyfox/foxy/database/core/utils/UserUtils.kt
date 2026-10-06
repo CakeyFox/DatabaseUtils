@@ -4,7 +4,6 @@ import com.github.benmanes.caffeine.cache.Caffeine
 import net.cakeyfox.foxy.database.utils.builders.FoxyUserBuilder
 import com.mongodb.client.model.Filters.and
 import org.bson.Document
-import kotlinx.coroutines.flow.firstOrNull
 import com.mongodb.client.model.Filters.eq
 import com.mongodb.client.model.Filters.exists
 import com.mongodb.client.model.Filters.lt
@@ -12,24 +11,21 @@ import com.mongodb.client.model.Filters.or
 import com.mongodb.client.model.FindOneAndUpdateOptions
 import com.mongodb.client.model.Projections
 import com.mongodb.client.model.ReturnDocument
-import com.mongodb.client.model.UpdateOptions
-import kotlinx.coroutines.flow.toList
 import kotlinx.datetime.Clock
 import kotlinx.datetime.toJavaInstant
 import kotlinx.datetime.toKotlinInstant
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.decodeFromJsonElement
-import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.serializer
 import net.cakeyfox.foxy.database.common.data.marry.CoupleStoreItem
 import net.cakeyfox.foxy.database.common.data.marry.Marry
 import net.cakeyfox.foxy.database.core.DatabaseClient
-import net.cakeyfox.foxy.database.data.checkout.Checkout
+import net.cakeyfox.foxy.database.core.encodeToDocument
 import net.cakeyfox.foxy.database.data.guild.Key
 import net.cakeyfox.foxy.database.data.user.FoxyUser
 import net.cakeyfox.foxy.database.data.user.MarryStatus
-import net.cakeyfox.foxy.database.data.user.PetInfo
 import net.cakeyfox.foxy.database.data.user.Reputation
 import net.cakeyfox.foxy.database.data.user.Roulette
 import net.cakeyfox.foxy.database.data.user.UserBirthday
@@ -47,6 +43,7 @@ import java.util.Date
 import java.util.UUID
 import java.util.concurrent.TimeUnit
 import kotlin.reflect.KClass
+import kotlin.reflect.typeOf
 
 class UserUtils(val client: DatabaseClient) {
     @PublishedApi
@@ -71,12 +68,12 @@ class UserUtils(val client: DatabaseClient) {
         userCache.invalidate(userId)
     }
 
-    private fun updateMarriageCache(marry: Marry) {
+    internal fun updateMarriageCache(marry: Marry) {
         marriageCache.put(marry.firstUser.id, marry)
         marriageCache.put(marry.secondUser.id, marry)
     }
 
-    private fun invalidateMarriageCache(marry: Marry?) {
+    internal fun invalidateMarriageCache(marry: Marry?) {
         if (marry == null) return
         marriageCache.invalidate(marry.firstUser.id)
         marriageCache.invalidate(marry.secondUser.id)
@@ -84,20 +81,14 @@ class UserUtils(val client: DatabaseClient) {
 
     suspend fun getUserByPremiumKey(key: String): FoxyUser? {
         return client.withRetry {
-            val collection = client.database.getCollection<Document>("keys")
-            val userCollection = client.database.getCollection<Document>("users")
-            val keyInfo = collection.find(eq("key", key)).firstOrNull()
+            val keyData = client.collections.premiumKeys.findOne(eq("key", key))
                 ?: return@withRetry null
-            val keyToJSON = keyInfo.toJson()
-            val keyData = client.json.decodeFromString<Key>(keyToJSON)
 
             userCache.getIfPresent(keyData.ownedBy!!)?.let { return@withRetry it }
 
-            val user = userCollection.find(eq("_id", keyData.ownedBy)).firstOrNull()
+            val decoded = client.collections.users.findById(keyData.ownedBy)
                 ?: return@withRetry null
-            val documentToJSON = user.toJson()
 
-            val decoded = client.json.decodeFromString<FoxyUser>(documentToJSON)
             updateUserCache(keyData.ownedBy, decoded)
             decoded
         }
@@ -113,6 +104,7 @@ class UserUtils(val client: DatabaseClient) {
      * data from unrelated reads, or discarding the DB-side projection and
      * always pulling the full document, which defeats its purpose.
      */
+    @Suppress("UNCHECKED_CAST")
     suspend inline fun <reified T> getFoxyProfile(
         userId: String,
         vararg fields: String
@@ -124,16 +116,11 @@ class UserUtils(val client: DatabaseClient) {
         }
 
         return client.withRetry {
-            val collection = client.database.getCollection<Document>("users")
-
             val projection = if (fields.isNotEmpty())
                 Projections.fields(fields.map { Projections.include(it) })
             else null
 
-            val document = collection
-                .find(eq("_id", userId))
-                .apply { projection?.let { projection(it) } }
-                .firstOrNull()
+            val document = client.collections.users.findDocument(Document("_id", userId), projection)
 
             val json = document?.toJson() ?: client.json.encodeToString(createUser(userId))
 
@@ -142,12 +129,15 @@ class UserUtils(val client: DatabaseClient) {
                 updateUserCache(userId, fullUser)
             }
 
-            if (fields.size == 1 && isPrimitive(T::class)) {
+            if (fields.size == 1) {
                 val element = fields[0].split(".").fold(
                     client.json.parseToJsonElement(json) as JsonElement?
-                ) { acc, key ->
-                    (acc as? JsonObject)?.get(key)
-                } ?: return@withRetry null as T
+                ) { acc, key -> (acc as? JsonObject)?.get(key) }
+
+                if (element == null || element is JsonNull) {
+                    if (typeOf<T>().isMarkedNullable) return@withRetry null as T
+                    throw NoSuchElementException("Field '${fields[0]}' is missing for user $userId")
+                }
 
                 return@withRetry client.json.decodeFromJsonElement(serializer<T>(), element)
             }
@@ -165,33 +155,27 @@ class UserUtils(val client: DatabaseClient) {
 
     suspend fun getExpiredDailies(): List<FoxyUser> {
         return client.withRetry {
-            val now = Instant.now()
-            val expirationTime = now.minus(24, ChronoUnit.HOURS)
+            val expirationTime = Instant.now().minus(24, ChronoUnit.HOURS)
 
-            val expiredDailies = client.users.find(
+            client.collections.users.findMany(
                 and(
                     exists("userCakes.lastDaily", true),
                     lt("userCakes.lastDaily", expirationTime)
                 )
-            ).toList()
-
-            expiredDailies
+            )
         }
     }
 
     suspend fun getExpiredVotes(): List<FoxyUser> {
         return client.withRetry {
-            val now = Instant.now()
-            val expirationTime = now.minus(12, ChronoUnit.HOURS)
+            val expirationTime = Instant.now().minus(12, ChronoUnit.HOURS)
 
-            val expiredVotes = client.users.find(
+            client.collections.users.findMany(
                 and(
                     lt("lastVote", expirationTime),
                     eq("notifiedForVote", false)
                 )
-            ).toList()
-
-            expiredVotes
+            )
         }
     }
 
@@ -204,12 +188,11 @@ class UserUtils(val client: DatabaseClient) {
     }
 
     suspend fun updateUser(userId: String, block: FoxyUserBuilder.() -> Unit) {
-        val builder = FoxyUserBuilder().apply(block)
+        val update = FoxyUserBuilder().apply(block).toDocument()
+        if (update.isEmpty()) return
 
         client.withRetry {
-            val query = Document("_id", userId)
-            val update = builder.toDocument()
-            client.users.updateOne(query, update)
+            client.collections.users.updateOne(Document("_id", userId), update)
             invalidateUserCache(userId)
         }
     }
@@ -225,11 +208,10 @@ class UserUtils(val client: DatabaseClient) {
      */
     suspend fun addVote(userId: String) {
         client.withRetry {
-            if (client.users.find(eq("_id", userId)).firstOrNull() == null) {
+            if (client.collections.users.findById(userId) == null) {
                 createUser(userId)
             }
 
-            val query = Document("_id", userId)
             val update = Document(
                 "\$set", Document(
                     mapOf(
@@ -248,31 +230,29 @@ class UserUtils(val client: DatabaseClient) {
                 )
             }
 
-            client.users.updateOne(query, update)
+            client.collections.users.updateOne(Document("_id", userId), update)
             invalidateUserCache(userId)
         }
     }
 
-    suspend fun addReputation(userId: String, reason: String) {
+    /**
+     * @param sender the user giving the reputation. Defaults to [userId] to preserve the previous
+     * behavior, but callers should pass the actual giver.
+     */
+    suspend fun addReputation(userId: String, reason: String, sender: String = userId) {
         client.withRetry {
-            val collection = client.database.getCollection<Document>("users")
+            if (client.collections.users.findById(userId) == null) createUser(userId)
 
-            collection.find(eq("_id", userId)).firstOrNull() ?: createUser(userId)
-
-            val query = Document("_id", userId)
-            val update = Reputation(
-                sender = userId,
+            val reputation = Reputation(
+                sender = sender,
                 reason = reason,
                 date = Clock.System.now()
             )
 
-            client.users.updateOne(
-                query,
-                Document(
-                    "\$push",
-                    Document("userProfile.reputations", update)
-                ),
-                UpdateOptions().upsert(true)
+            client.collections.users.updateOne(
+                Document("_id", userId),
+                Document("\$push", Document("userProfile.reputations", client.encodeToDocument(reputation))),
+                upsert = true
             )
             invalidateUserCache(userId)
         }
@@ -283,7 +263,7 @@ class UserUtils(val client: DatabaseClient) {
             val query = Document("_id", Document("\$in", users.map { it._id }))
             val update = Document("\$set", Document(updates))
 
-            client.users.updateMany(query, update)
+            client.collections.users.updateMany(query, update)
             users.forEach { invalidateUserCache(it._id) }
         }
     }
@@ -296,11 +276,9 @@ class UserUtils(val client: DatabaseClient) {
      * that's cheap to compute on demand.
      */
     suspend fun getUserRankPosition(userId: String): Int {
-        val collection = client.database.getCollection<FoxyUser>("users")
-
         val userCakes = getFoxyProfile<Double?>(userId, "userCakes.balance") ?: return -1
 
-        val countAbove = collection.countDocuments(
+        val countAbove = client.collections.users.count(
             Document("userCakes.balance", Document("\$gt", userCakes))
         )
 
@@ -312,42 +290,37 @@ class UserUtils(val client: DatabaseClient) {
     suspend fun getCakesLeaderboardPage(page: Int, pageSize: Int? = 10): List<FoxyUser> {
         val skip = (page - 1) * pageSize!!
 
-        val collection = client.database.getCollection<FoxyUser>("users")
-
-        return collection
-            .find(Document("userCakes.balance", Document("\$gt", 0)))
-            .sort(Document("userCakes.balance", -1))
-            .skip(skip)
-            .limit(pageSize)
-            .toList()
+        return client.collections.users.findMany(
+            filter = Document("userCakes.balance", Document("\$gt", 0)),
+            sort = Document("userCakes.balance", -1),
+            skip = skip,
+            limit = pageSize
+        )
     }
 
     suspend fun addCakesToUser(userId: String, amount: Long) {
         client.withRetry {
-            val query = Document("_id", userId)
-            val update = Document("\$inc", Document("userCakes.balance", amount.toDouble()))
-
-            client.users.updateOne(query, update)
+            client.collections.users.updateOne(
+                Document("_id", userId),
+                Document("\$inc", Document("userCakes.balance", amount.toDouble()))
+            )
             invalidateUserCache(userId)
         }
     }
 
     suspend fun removeCakesFromUser(userId: String, amount: Long) {
         client.withRetry {
-            val query = Document("_id", userId)
-            val update = Document("\$inc", Document("userCakes.balance", -amount.toDouble()))
-
-            client.users.updateOne(query, update)
+            client.collections.users.updateOne(
+                Document("_id", userId),
+                Document("\$inc", Document("userCakes.balance", -amount.toDouble()))
+            )
             invalidateUserCache(userId)
         }
     }
 
     suspend fun getItemFromCoupleShop(itemId: String): CoupleStoreItem? {
         return client.withRetry {
-            val store = client.database.getCollection<CoupleStoreItem>("couple_shop")
-            val filter = eq("_id", itemId)
-
-            store.find(filter).firstOrNull()
+            client.collections.coupleShop.findById(itemId)
         }
     }
 
@@ -355,23 +328,19 @@ class UserUtils(val client: DatabaseClient) {
         userId: String,
         block: MarryBuilder.() -> Unit
     ): Marry? {
-        val builder = MarryBuilder().apply(block)
+        val update = MarryBuilder().apply(block).toDocument()
+        if (update.isEmpty()) return null
 
         return client.withRetry {
-            val marriages = client.database.getCollection<Marry>("marriages")
-
             val filter = or(
                 eq("firstUser.id", userId),
                 eq("secondUser.id", userId)
             )
 
-            val update = builder.toDocument()
-
-            val result = marriages.findOneAndUpdate(
+            val result = client.collections.marriages.findOneAndUpdate(
                 filter,
                 update,
-                FindOneAndUpdateOptions()
-                    .returnDocument(ReturnDocument.AFTER)
+                returnDocument = ReturnDocument.AFTER
             )
 
             result?.let { updateMarriageCache(it) }
@@ -381,7 +350,6 @@ class UserUtils(val client: DatabaseClient) {
 
     suspend fun createMarriage(requesterId: String, userId: String, marriageName: String): Marry {
         return client.withRetry {
-            val collection = client.database.getCollection<Document>("marriages")
             val uuidv4 = UUID.randomUUID()
             val date = ZonedDateTime.now(ZoneId.systemDefault()).toInstant()
 
@@ -401,9 +369,7 @@ class UserUtils(val client: DatabaseClient) {
                 affinityPoints = 0
             )
 
-            val documentToJSON = client.json.encodeToString(newMarriage)
-            val document = Document.parse(documentToJSON)
-            collection.insertOne(document)
+            client.collections.marriages.insertOne(newMarriage)
 
             updateMarriageCache(newMarriage)
             newMarriage
@@ -412,29 +378,22 @@ class UserUtils(val client: DatabaseClient) {
 
     suspend fun deleteUser(userId: String) {
         client.withRetry {
-            val users = client.database.getCollection<Document>("users")
-            val keys = client.database.getCollection<Document>("keys")
-            val marriages = client.database.getCollection<Marry>("marriages")
-            val checkouts = client.database.getCollection<Checkout>("checkoutlists")
-
-            users.deleteOne(eq("_id", userId))
-            keys.deleteOne(eq("ownedBy", userId))
-            marriages.deleteMany(or(eq("firstUser.id", userId), eq("secondUser.id", userId)))
-            checkouts.deleteMany(eq("userId", userId))
+            client.collections.users.deleteOne(eq("_id", userId))
+            client.collections.premiumKeys.deleteOne(eq("ownedBy", userId))
+            client.collections.marriages.deleteMany(or(eq("firstUser.id", userId), eq("secondUser.id", userId)))
+            client.collections.checkouts.deleteMany(eq("userId", userId))
             invalidateUserCache(userId)
         }
     }
 
     suspend fun deleteMarriage(userId: String) {
         client.withRetry {
-            val collection = client.database.getCollection<Marry>("marriages")
-
             val filter = or(
                 eq("firstUser.id", userId),
                 eq("secondUser.id", userId)
             )
 
-            val deleted = collection.findOneAndDelete(filter)
+            val deleted = client.collections.marriages.findOneAndDelete(filter)
             invalidateMarriageCache(deleted)
         }
     }
@@ -443,14 +402,12 @@ class UserUtils(val client: DatabaseClient) {
         marriageCache.getIfPresent(userId)?.let { return it }
 
         return client.withRetry {
-            val marriages = client.database.getCollection<Marry>("marriages")
-
-            val marry = marriages.find(
+            val marry = client.collections.marriages.findOne(
                 or(
                     eq("firstUser.id", userId),
                     eq("secondUser.id", userId)
                 )
-            ).firstOrNull()
+            )
 
             marry?.let { updateMarriageCache(it) }
             marry
@@ -459,8 +416,6 @@ class UserUtils(val client: DatabaseClient) {
 
     suspend fun createUser(userId: String): FoxyUser {
         return client.withRetry {
-            val collection = client.database.getCollection<Document>("users")
-
             val newUser = FoxyUser(
                 _id = userId,
                 userCakes = UserCakes(balance = 0.0),
@@ -473,11 +428,10 @@ class UserUtils(val client: DatabaseClient) {
                 roulette = Roulette(),
             )
 
-            val documentToJSON = client.json.encodeToString(newUser)
-            val document = Document.parse(documentToJSON)
+            val document = client.collections.users.encode(newUser)
             document["userCreationTimestamp"] = Date.from(newUser.userCreationTimestamp!!.toJavaInstant())
 
-            collection.insertOne(document)
+            client.collections.users.insertOne(document)
 
             updateUserCache(userId, newUser)
             newUser

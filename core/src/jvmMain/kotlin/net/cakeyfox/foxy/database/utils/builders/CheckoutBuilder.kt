@@ -2,6 +2,7 @@ package net.cakeyfox.foxy.database.utils.builders
 
 import org.bson.Document
 
+@FoxyDsl
 class CheckoutBuilder {
     var userId: String? = null
     var itemId: String? = null

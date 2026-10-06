@@ -3,6 +3,7 @@ package net.cakeyfox.foxy.database.utils.builders
 import kotlinx.datetime.Instant
 import org.bson.Document
 
+@FoxyDsl
 class MarryBuilder {
 
     var marriedDate: Instant? = null
