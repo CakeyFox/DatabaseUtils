@@ -27,6 +27,7 @@ class GuildBuilder {
     val guildAnalytics = MetricBuilder()
     val strictMode = StrictModeBuilder()
     val antiSelfbotModule = AntiSelfbotModuleBuilder()
+    val antiNukeModule = AntiNukeModuleBuilder()
 
     fun toDocument(): Document {
         val setOps = mutableMapOf<String, Any?>()
@@ -48,6 +49,7 @@ class GuildBuilder {
         setOps.putAll(guildAnalytics.toDocument("guildAnalytics"))
         setOps.putAll(strictMode.toDocument("strictMode"))
         setOps.putAll(antiSelfbotModule.toDocument("antiSelfbotModule"))
+        setOps.putAll(antiNukeModule.toDocument("antiNukeModule"))
 
         if (followedYouTubeChannels.isNotEmpty()) {
             pushOps["followedYouTubeChannels"] = Document("\$each", followedYouTubeChannels.map { it.toMap() })
@@ -102,6 +104,38 @@ class AntiSelfbotModuleBuilder {
         messageHoneypotPunishment?.let { map["$prefix.messageHoneypotPunishment"] = it }
         roles?.let { map["$prefix.roles"] = it }
         channels?.let { map["$prefix.channels"] = it }
+
+        return map
+    }
+}
+
+@FoxyDsl
+class AntiNukeModuleBuilder {
+    var isEnabled: Boolean? = null
+    var canBlockRoleNuke: Boolean? = null
+    var canBlockMassBan: Boolean? = null
+    var blockEveryoneRoleEscalation: Boolean? = null
+    var blockDangerousRoleGrant: Boolean? = null
+    var massBanThreshold: Long? = null
+    var massBanTimeWindow: Long? = null
+    var actionForNuke: String? = null
+    var alertChannel: String? = null
+    var whitelistedUsers: MutableList<String>? = null
+    var whitelistedRoles: MutableList<String>? = null
+
+    fun toDocument(prefix: String): Map<String, Any?> {
+        val map = mutableMapOf<String, Any?>()
+        isEnabled?.let { map["$prefix.isEnabled"] = it }
+        canBlockRoleNuke?.let { map["$prefix.canBlockRoleNuke"] = it }
+        canBlockMassBan?.let { map["$prefix.canBlockMassBan"] = it }
+        blockEveryoneRoleEscalation?.let { map["$prefix.blockEveryoneRoleEscalation"] = it }
+        blockDangerousRoleGrant?.let { map["$prefix.blockDangerousRoleGrant"] = it }
+        massBanThreshold?.let { map["$prefix.massBanThreshold"] = it }
+        massBanTimeWindow?.let { map["$prefix.massBanTimeWindow"] = it }
+        actionForNuke?.let { map["$prefix.actionForNuke"] = it }
+        alertChannel?.let { map["$prefix.alertChannel"] = it }
+        whitelistedUsers?.let { map["$prefix.whitelistedUsers"] = it }
+        whitelistedRoles?.let { map["$prefix.whitelistedRoles"] = it }
 
         return map
     }
@@ -316,6 +350,25 @@ class WelcomerModuleBuilder {
     var dmWelcomeMessage: String? = null
     var leaveChannel: String? = null
     var joinChannel: String? = null
+    var randomJoinMessages: RandomJoinMessagesBuilder? = null
+
+    @FoxyDsl
+    inner class RandomJoinMessagesBuilder {
+        var isEnabled: Boolean? = null
+        var messages: MutableList<String>? = null
+
+        fun toDocument(prefix: String): Map<String, Any?> {
+            val map = mutableMapOf<String, Any?>()
+            isEnabled?.let { map["$prefix.isEnabled"] = it }
+            messages?.let { map["$prefix.messages"] = it }
+            return map
+        }
+    }
+
+    fun randomJoinMessages(block: RandomJoinMessagesBuilder.() -> Unit) {
+        val handler = randomJoinMessages ?: RandomJoinMessagesBuilder().also { randomJoinMessages = it }
+        handler.block()
+    }
 
     fun toDocument(prefix: String): Map<String, Any?> {
         val map = mutableMapOf<String, Any?>()
@@ -327,6 +380,7 @@ class WelcomerModuleBuilder {
         leaveChannel?.let { map["$prefix.leaveChannel"] = it }
         joinChannel?.let { map["$prefix.joinChannel"] = it }
         alertWhenUserLeaves?.let { map["$prefix.alertWhenUserLeaves"] = it }
+        randomJoinMessages?.toDocument("$prefix.randomJoinMessages")?.let { map.putAll(it) }
         return map
     }
 }

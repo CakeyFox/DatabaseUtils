@@ -29,6 +29,7 @@ data class Guild(
     val guildAnalytics: Metrics = Metrics(),
     val strictMode: StrictMode = StrictMode(),
     val antiSelfbotModule: AntiSelfbotModule = AntiSelfbotModule(),
+    val antiNukeModule: AntiNukeModule = AntiNukeModule(),
  )
 
 @Serializable
@@ -156,10 +157,17 @@ data class WelcomerModule(
     val alertWhenUserLeaves: Boolean = false,
     val sendDmWelcomeMessage: Boolean = false,
     val dmWelcomeMessage: String? = null,
+    val randomJoinMessages: RandomJoinMessages? = RandomJoinMessages(),
     val leaveMessage: String? = WebhookText.contentJson("{@user}, saiu do servidor!"),
     val joinChannel: String? = null,
     val leaveChannel: String? = null,
-)
+) {
+    @Serializable
+    data class RandomJoinMessages(
+        val isEnabled: Boolean = false,
+        val messages: List<String> = emptyList()
+    )
+}
 
 @Serializable
 data class AntiRaidModule(
@@ -178,6 +186,27 @@ data class AntiRaidModule(
     val timeoutDuration: Long = 10000,
     val whitelistedChannels: List<String> = emptyList(),
     val whitelistedRoles: List<String> = emptyList(),
+)
+
+@Serializable
+data class AntiNukeModule(
+    var isEnabled: Boolean = false,
+
+    // Toggles amplos (hierárquicos: o amplo implica os sub-toggles)
+    var canBlockRoleNuke: Boolean = true,
+    var canBlockMassBan: Boolean = true,
+
+    // Sub-detecções (implicadas por canBlockRoleNuke)
+    var blockEveryoneRoleEscalation: Boolean = true,   // @everyone ganhando permissão perigosa
+    var blockDangerousRoleGrant: Boolean = true,        // membro ganhando cargo perigoso
+
+    var massBanThreshold: Long = 3,
+    var massBanTimeWindow: Long = 10_000,               // ms
+
+    var actionForNuke: String = "NOTHING",
+    var alertChannel: String? = null,
+    var whitelistedUsers: MutableList<String> = mutableListOf(),
+    var whitelistedRoles: MutableList<String> = mutableListOf(),
 )
 
 @Serializable
