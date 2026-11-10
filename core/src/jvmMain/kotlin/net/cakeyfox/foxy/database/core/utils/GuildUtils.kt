@@ -6,7 +6,6 @@ import net.cakeyfox.foxy.database.utils.builders.GuildBuilder
 import org.bson.Document
 import mu.KotlinLogging
 import com.mongodb.client.model.Filters.eq
-import com.mongodb.client.model.FindOneAndUpdateOptions
 import com.mongodb.client.model.ReturnDocument
 import com.mongodb.client.model.Updates.pull
 import com.mongodb.client.model.Updates.push
@@ -203,13 +202,13 @@ class GuildUtils(
         }
     }
 
-    suspend fun getGuildsLeftMoreThan14Days(): List<Guild> {
+    suspend fun getGuildsLeftMoreThan90Days(): List<Guild> {
         return client.withRetry {
-            val fourteenDaysAgo = Date.from(
-                (Clock.System.now() - 14.days).toJavaInstant()
+            val ninetyDaysAgo = Date.from(
+                (Clock.System.now() - 90.days).toJavaInstant()
             )
 
-            val query = Document("leftAt", Document("\$lt", fourteenDaysAgo))
+            val query = Document("leftAt", Document("\$lt", ninetyDaysAgo))
 
             client.collections.guilds.findMany(query)
         }
