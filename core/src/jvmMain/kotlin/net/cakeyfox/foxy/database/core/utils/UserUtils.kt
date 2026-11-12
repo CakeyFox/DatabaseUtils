@@ -298,6 +298,17 @@ class UserUtils(val client: DatabaseClient) {
         )
     }
 
+    suspend fun getUpvotersLeaderboardPage(page: Int, pageSize: Int? = 10): List<FoxyUser> {
+        val skip = (page - 1) * pageSize!!
+
+        return client.collections.users.findMany(
+            filter = Document("voteCount", Document("\$gt", 0)),
+            sort = Document("voteCount", -1),
+            skip = skip,
+            limit = pageSize
+        )
+    }
+
     suspend fun addCakesToUser(userId: String, amount: Long) {
         client.withRetry {
             client.collections.users.updateOne(
