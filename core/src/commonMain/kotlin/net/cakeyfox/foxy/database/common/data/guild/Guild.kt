@@ -30,6 +30,7 @@ data class Guild(
     val strictMode: StrictMode = StrictMode(),
     val antiSelfbotModule: AntiSelfbotModule = AntiSelfbotModule(),
     val antiNukeModule: AntiNukeModule = AntiNukeModule(),
+    val onboardingFinished: Boolean? = false,
  )
 
 @Serializable

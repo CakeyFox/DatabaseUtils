@@ -28,6 +28,7 @@ class GuildBuilder {
     val strictMode = StrictModeBuilder()
     val antiSelfbotModule = AntiSelfbotModuleBuilder()
     val antiNukeModule = AntiNukeModuleBuilder()
+    var onboardingFinished: Boolean? = null
 
     fun toDocument(): Document {
         val setOps = mutableMapOf<String, Any?>()
@@ -35,6 +36,7 @@ class GuildBuilder {
 
         guildAddedAt?.let { setOps["guildAddedAt"] = it }
         leftAt?.let { setOps["leftAt"] = it.toBsonDate() }
+        onboardingFinished?.let { setOps["onboardingFinished"] = it }
 
         setOps.putAll(serverLogModule.toDocument("serverLogModule"))
         setOps.putAll(guildJoinLeaveModule.toDocument("GuildJoinLeaveModule"))
