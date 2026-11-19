@@ -21,6 +21,7 @@ data class FoxyUser(
     val userPremium: UserPremium = UserPremium(),
     val userSettings: UserSettings = UserSettings(),
     val userTransactions: List<Transaction> = emptyList(),
+    val roleplayActionsCounter: RoleplayActionsCounter = RoleplayActionsCounter(),
     val roulette: Roulette = Roulette(),
     @Serializable(with = MongoDateSerializer::class)
     val lastVote: Instant? = null,
@@ -31,6 +32,14 @@ data class FoxyUser(
     val riotUserId: String? = "",
     val robloxUserId: String? = "",
     val lastBroadcastedMessageId: String? = ""
+)
+
+@Serializable
+data class RoleplayActionsCounter(
+    val kissCount: Long? = 0L,
+    val hugCount: Long? = 0L,
+    val patCount: Long? = 0L,
+    val slapCount: Long? = 0L,
 )
 
 @Serializable

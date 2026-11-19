@@ -15,6 +15,7 @@ class FoxyUserBuilder {
     val userBirthday = UserBirthdayBuilder()
     val roulette = RouletteBuilder()
     val notifications = NotificationsBuilder()
+    val roleplayActionsCounter = RoleplayActionsCounter()
 
     var isBanned: Boolean? = null
     var banReason: String? = null
@@ -53,6 +54,7 @@ class FoxyUserBuilder {
         mergeBuilderMaps(userBirthday.toDocument("userBirthday"), setMap, incMap, pushMap)
         mergeBuilderMaps(roulette.toDocument("roulette"), setMap, incMap, pushMap)
         mergeBuilderMaps(notifications.toDocument("notifications"), setMap, incMap, pushMap)
+        mergeBuilderMaps(roleplayActionsCounter.toDocument("roleplayActionsCounter"), setMap, incMap, pushMap)
 
 
         val doc = Document()
@@ -76,6 +78,25 @@ class FoxyUserBuilder {
                 else -> setMap[key] = value
             }
         }
+    }
+}
+
+@FoxyDsl
+class RoleplayActionsCounter {
+    var kissCount: Long? = null
+    var hugCount: Long? = null
+    var patCount: Long? = null
+    var slapCount: Long? = null
+
+    fun toDocument(prefix: String): Document {
+        val map = mutableMapOf<String, Any?>()
+
+        kissCount?.let { map["$prefix.kissCount"] = it }
+        hugCount?.let { map["$prefix.hugCount"] = it }
+        patCount?.let { map["$prefix.patCount"] = it }
+        slapCount?.let { map["$prefix.slapCount"] = it }
+
+        return Document(map)
     }
 }
 
