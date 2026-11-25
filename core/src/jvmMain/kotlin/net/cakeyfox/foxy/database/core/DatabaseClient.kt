@@ -8,8 +8,11 @@ import com.mongodb.MongoTimeoutException
 import com.mongodb.kotlin.client.coroutine.MongoClient
 import com.mongodb.kotlin.client.coroutine.MongoCollection
 import com.mongodb.kotlin.client.coroutine.MongoDatabase
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import mu.KotlinLogging
@@ -77,6 +80,7 @@ class DatabaseClient() {
 
     private val coroutineExecutor = ThreadUtils.createThreadPool("DatabaseExecutor [%d]")
     private val coroutineDispatcher = coroutineExecutor.asCoroutineDispatcher()
+    private val coroutineScope = CoroutineScope(coroutineDispatcher + SupervisorJob())
 
     val json = Json {
         encodeDefaults = true
@@ -114,6 +118,22 @@ class DatabaseClient() {
         }
 
         logger.info { "Connected to MongoDB database '$databaseName' successfully." }
+
+        scheduleIndexCreation()
+    }
+
+    /**
+     * Runs in the background so a slow or unauthorized index build never delays startup. Index
+     * creation is idempotent, so reconnecting (which calls [connect] again) is harmless.
+     */
+    private fun scheduleIndexCreation() {
+        coroutineScope.launch(coroutineDispatcher) {
+            try {
+                DatabaseIndexes.ensure(database)
+            } catch (e: Exception) {
+                logger.warn(e) { "Could not ensure database indexes" }
+            }
+        }
     }
 
     private fun reconnect() {
